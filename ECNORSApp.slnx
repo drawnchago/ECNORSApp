@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="ECNORSApp/ECNORSApp.csproj" />
+  <Project Path="ECNORSAppData/ECNORSAppData.csproj" />
+  <Project Path="ECNORSAppEF/ECNORSAppEF.csproj" />
+</Solution>

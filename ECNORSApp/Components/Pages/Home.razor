@@ -1,0 +1,577 @@
+﻿@page "/"
+@using ECNORSAppData.Data.Config
+@using ECNORSAppData.Data.Models
+@using ECNORSAppData.Data.DTO
+@using ECNORSAppData.Services
+@inject IConnectionSelector ConnectionSelector
+@inject SelectedConnectionState ConnState
+@inject ICloseLoadService CloseLoadService
+
+    <h4>Selecciona la estación </h4>
+
+    @if (!string.IsNullOrWhiteSpace(status))
+    {
+        <div class="mt-2 d-flex align-items-center">
+            <span>@status</span>
+
+            @if (isConnected)
+            {
+                <button class="btn btn-danger btn-sm ms-auto"
+                        @onclick="CancelConnection"
+                        disabled="@isBusy">
+                    Desconectar
+                </button>
+            }
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorDispensarios))
+        {
+            <div class="text-danger mt-1">@errorDispensarios</div>
+        }
+    }
+
+    <div class="d-flex align-items-center gap-2 mt-2">
+        <select class="form-select" style="max-width:260px" @bind="selectedName" disabled="@isBusy">
+            <option value="">-- Selecciona --</option>
+            @foreach (var c in connections)
+            {
+                <option value="@c.name">@c.name</option>
+            }
+        </select>
+
+        <button class="btn btn-primary"
+                @onclick="ConnectAsync"
+                disabled="@(!CanConnect || isBusy || isConnected)">
+            @if (isBusy)
+            {
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span>Conectando...</span>
+            }
+            else
+            {
+                <span>Conectar</span>
+            }
+        </button>
+    </div>
+
+
+@if (isConnected)
+{
+    <hr class="my-3" />
+
+    <h5>Dispensarios</h5>
+
+    @if (isLoadingDispensarios)
+    {
+        <div>Cargando dispensarios...</div>
+    }
+    else if (!string.IsNullOrWhiteSpace(errorDispensarios))
+    {
+        <div class="text-danger">@errorDispensarios</div>
+    }
+    else
+    {
+
+        <select class="form-select"
+                value="@selectedDispensarioId"
+                @onchange="async e => await OnDispensaryChanged(e)">
+            <option value="">-- Selecciona dispensario --</option>
+            @foreach (var d in dispensarios)
+            {
+                <option value="@d.DispensaryId">@d.DisplayName</option>
+            }
+        </select>
+
+    }
+    @if (selectedDispensarioId.HasValue)
+    {
+        <hr class="my-3" />
+
+        @if (isLoadingTables)
+        {
+            <div>Cargando Bitácora y Transacciones...</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(errorTables))
+        {
+            <div class="text-danger">@errorTables</div>
+        }
+        else
+        {
+            <h5>Bitácora (Top 7)</h5>
+            <div class="cardish mt-3">
+                <div class="table-title">
+                    <h5 class="m-0">Bitácora</h5>
+                    <span class="badge-soft">Top 7 • últimas 24h</span>
+                </div>
+
+                <div class="table-shell">
+                    <table class="nice-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th>Observaciones</th>
+                                <th class="num">Programado</th>
+                                <th class="num">Vendido</th>
+                                <th class="num">Vol. Vendido</th>
+                                <th class="num">Precio</th>
+                                <th>Cerrada</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @if (binnacle.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="8" class="muted">Sin registros para este dispensario.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var r in binnacle)
+                                {
+                                   <tr style="cursor:pointer" title="Click para detalle" @onclick="() => OpenBinnacleModal(r)">
+                                        <td>@r.id</td>
+                                        <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
+                                        <td>@r.Observations</td>
+                                        <td class="num">@Format2(r.Scheduled)</td>
+                                        <td class="num">@Format2(r.Sold)</td>
+                                        <td class="num">@Format2(r.SoldVolume)</td>
+                                        <td class="num">@Format2(r.UnitPrice)</td>
+                                        <td>
+                                            @if (r.Closed == true)
+                                            {
+                                                <span class="pill ok">Sí</span>
+                                            }
+                                            else if (r.Closed == false)
+                                            {
+                                                <span class="pill no">No</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="pill muted">N/A</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+
+            <h5 class="mt-4">Transacciones (Top 7)</h5>
+            <div class="cardish mt-4">
+                <div class="table-title">
+                    <h5 class="m-0">Transacciones</h5>
+                    <span class="badge-soft">Top 7 • últimas 24h</span>
+                </div>
+
+                <div class="table-shell">
+                    <table class="nice-table">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Fecha</th>
+                                <th class="num">Volumen</th>
+                                <th class="num">Importe</th>
+                                <th class="num">Precio</th>
+                            </tr>
+                        </thead>
+
+                        <tbody>
+                            @if (transactions.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="muted">Sin registros para este dispensario.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (var r in transactions)
+                                {
+                                    <tr>
+                                        <td>@r.id</td>
+                                        <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
+                                        <td class="num">@Format2(r.Volume)</td>
+                                        <td class="num">@Format2(r.Amount)</td>
+                                        <td class="num">@Format2(r.UnitPrice)</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        }
+    }
+
+@* ===== MODAL DETALLE (Transacción por secuencia) ===== *@
+@if (showBinnacleModal && selectedBinnacle is not null)
+{
+    <div class="modal-backdrop" @onclick="CloseBinnacleModal"></div>
+
+    <div class="modal d-block" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered"
+             @onclick:stopPropagation="true">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Detalle (Secuencia @selectedBinnacle.id)</h5>
+                    <button type="button" class="btn-close" @onclick="CloseBinnacleModal"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="col-12 col-md-4 text-center">
+                        <label class="form-label fw-bold"># Secuencia</label>
+                        <input class="form-control text-center fw-bold fs-4 border-primary"
+                               value="@(selectedBinnacle?.id.ToString() ?? "")"
+                               readonly />
+                    </div>
+                    <div class="col-12 col-md-4 text-center">
+                        <label class="form-label fw-bold">ID Transacción</label>
+                        <input class="form-control"
+                                value="@(selectedTransaction?.id.ToString() ?? "")"
+                                readonly />
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Dispensario</label>
+                            <input class="form-control fw-bold"
+                                   value="@selectedBinnacle?.DispensaryId"
+                                   readonly />
+                        </div>                    
+                       <div class="col-6">
+                            <label class="form-label fw-bold">Manguera</label>
+                            <input class="form-control "
+                                   value="@selectedBinnacle?.HoseId"
+                                   readonly />
+                        </div>
+                    </div>
+
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label fw-bold">Producto</label>
+                            <input class="form-control fw-bold text-white text-center @GetProductCss()"
+                                   value="@GetProductText()"
+                                   readonly />
+                        </div>
+                        <label class="form-label fw-bold text-center d-block">Bitácora</label>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Vendido</label>
+                            <input class="form-control"
+                                   value="@selectedBinnacle?.Sold"
+                                   readonly />
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Volumen Vendido</label>
+                            <input class="form-control"
+                                   value="@selectedBinnacle?.SoldVolume"
+                                   readonly />
+                        </div>
+                    </div>
+                    @* <label class="form-label fw-bold text-center d-block">Transaccion</label>
+
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Volumen</label>
+                            <input class="form-control"
+                                   type="number"
+                                   step="0.001"
+                                   @bind="editTrxVolume" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Importe</label>
+                            <input class="form-control"
+                                   type="number"
+                                   step="0.001"
+                                   @bind="editTrxAmount" />
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Precio Unitario</label>
+                        <input class="form-control"
+                                value="@Format2(selectedTransaction?.UnitPrice)"
+                                readonly />
+                    </div> *@
+                    <label class="form-label fw-bold text-center d-block">Correcion</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">V.Bruto(GROSS)</label>
+                            <input class="form-control"
+                                   type="number"/>
+                        </div>
+                        <div class="col-6">
+                                <label class="form-label fw-bold">V.Neto</label>
+                            <input class="form-control"
+                                   type="number" />
+                        </div>
+                    </div>
+                    <div class="col-12">
+                        <label class="form-label fw-bold">Temperatura</label>
+                        <input class="form-control"
+                                type="number" />
+                    </div>
+                    @if (!string.IsNullOrWhiteSpace(errorModal))
+                    {
+                        <div class="text-danger">@errorModal</div>
+                    }
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CloseBinnacleModal">Cerrar</button>
+                    <button class="btn btn-primary" @onclick="SaveModal" disabled="@isSavingModal">
+                        @(isSavingModal ? "Guardando..." : "Guardar")
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+
+
+@code {
+    private List<ConnItem> connections = new();
+    private string selectedName = "";
+
+    private bool isBusy = false;               // bloquea UI durante conectar
+    private bool isConnected = false;          // “estado conectado” para UI
+    private string status = "";
+
+    private bool isLoadingDispensarios = false;
+    private string? errorDispensarios;
+
+    private List<DispensaryDto> dispensarios = new(); 
+    private int? selectedDispensarioId;
+
+    private bool CanConnect => !string.IsNullOrWhiteSpace(selectedName);
+    private bool HasSelectedDispensario => selectedDispensarioId.HasValue;
+    private bool isLoadingTables = false;
+    private string? errorTables;
+    private List<TransactionDto> transactions = new();
+    private List<BinnacleDto> binnacle = new();
+    private static string Format2(double? v) => v.HasValue ? v.Value.ToString("N2") : "-";
+
+        // ===== Modal state =====
+    private bool showBinnacleModal = false;
+    private bool isSavingModal = false;
+    private string? errorModal;
+
+    private BinnacleDto? selectedBinnacle;
+
+    private TransactionDto? selectedTransaction;
+    private double? editTrxVolume;
+    private double? editTrxAmount;
+    private double? editTrxUnitPrice;
+
+
+    protected override void OnInitialized()
+    {
+        connections = ConnectionSelector.GetConnections().ToList();
+        selectedName = ConnState.GetSelectedName() ?? "";
+        // arrancamos como desconectado (puedes cambiarlo si quieres recordar conexión)
+        isConnected = false;
+    }
+
+    private async Task ConnectAsync()
+    {
+        if (!CanConnect || isBusy || isConnected) return;
+
+        isBusy = true;
+        status = "";
+        errorDispensarios = null;
+
+        dispensarios.Clear();
+        selectedDispensarioId = null;
+        isConnected = false;
+
+        try
+        {
+            // 1) Guardar selección (esto define qué connection string usará el DbContextFactory)
+            ConnState.SetSelectedName(selectedName);
+
+            // 2) Leer a qué BD/servidor realmente apunta (para validar que sí cambió)
+            var info = await CloseLoadService.GetDbInfoAsync();
+
+            // 3) “Validar conexión” cargando datos (si falla, no conectó)
+            await LoadDispensariosAsync();
+
+            // 4) OK
+            isConnected = true;
+            status = $"Conexión establecida ✅ ({info})";
+        }
+        catch (Exception ex)
+        {
+            isConnected = false;
+            status = "Error al conectar ❌";
+            errorDispensarios = ex.ToString(); // temporal para ver todo; luego lo regresas a ex.Message
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task LoadDispensariosAsync()
+    {
+        isLoadingDispensarios = true;
+        try
+        {
+            var list = await CloseLoadService.GetDispensariosAsync();
+            dispensarios = list.ToList();
+        }
+        finally
+        {
+            isLoadingDispensarios = false;
+        }
+    }
+
+
+    private void CancelConnection()
+    {
+        if (isBusy) return;
+
+        // “Cancelar conexión” = reset UI + limpiar selección (opcional)
+        isConnected = false;
+        status = "Desconectada 🔴";
+
+        dispensarios.Clear();
+        selectedDispensarioId = null;
+        errorDispensarios = null;
+
+        // Opcional: limpiar conexión guardada
+        ConnState.SetSelectedName("");
+        selectedName = "";
+    }
+
+    private async Task OnDispensaryChanged(ChangeEventArgs e)
+    {
+        if (e?.Value is null || string.IsNullOrWhiteSpace(e.Value.ToString()))
+        {
+            selectedDispensarioId = null;
+            transactions.Clear();
+            binnacle.Clear();
+            return;
+        }
+
+        selectedDispensarioId = int.Parse(e.Value.ToString()!);
+
+        isLoadingTables = true;
+        errorTables = null;
+        transactions.Clear();
+        binnacle.Clear();
+        StateHasChanged();
+
+        try
+        {
+            var dispId = selectedDispensarioId.Value;
+
+            var bTask = CloseLoadService.GetBinnacleTopAsync(dispId);
+            var tTask = CloseLoadService.GetTransactionsTopAsync(dispId);
+
+            await Task.WhenAll(bTask, tTask);
+
+            binnacle = bTask.Result.ToList();
+            transactions = tTask.Result.ToList();
+        }
+        catch (Exception ex)
+        {
+            errorTables = ex.ToString(); // para ver error real si falla
+        }
+        finally
+        {
+            isLoadingTables = false;
+            StateHasChanged();
+        }
+    }
+    
+    private async Task OpenBinnacleModal(BinnacleDto row)
+    {
+        selectedBinnacle = row;
+        errorModal = null;
+
+        showBinnacleModal = true;
+        StateHasChanged();
+
+        try
+        {
+            selectedTransaction =
+                await CloseLoadService.GetTransactionBySequenceAsync(row.id); // row.id = secuencia
+
+            if (selectedTransaction is not null)
+            {
+                editTrxVolume = selectedTransaction.Volume;
+                editTrxAmount = selectedTransaction.Amount;
+                editTrxUnitPrice = selectedTransaction.UnitPrice;
+            }
+            else
+            {
+                errorModal = "No se encontró transacción para esta secuencia.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorModal = ex.ToString();
+        }
+
+        StateHasChanged();
+    }
+
+
+    private void CloseBinnacleModal()
+    {
+        showBinnacleModal = false;
+        selectedBinnacle = null;
+        errorModal = null;
+    }
+
+    private async Task SaveModal()
+    {
+        // Aquí todavía no guardamos a BD (porque no me pediste el update).
+        // Si quieres guardar, dime si actualizamos por intID o por intSecuencia y te hago el método Update.
+
+        isSavingModal = true;
+        try
+        {
+            // Solo cerrar por ahora
+            showBinnacleModal = false;
+        }
+        finally
+        {
+            isSavingModal = false;
+            StateHasChanged();
+        }
+        await Task.CompletedTask;
+    }
+
+    private string GetProductText()
+    {
+        return selectedBinnacle?.ProductId switch
+        {
+            1 => "SUPREME",
+            2 => "EXTRA",
+            3 => "DIESEL",
+            _ => selectedBinnacle?.ProductId?.ToString() ?? ""
+        };
+    }
+
+    private string GetProductCss()
+    {
+        return selectedBinnacle?.ProductId switch
+        {
+            1 => "bg-primary",  // AZUL
+            2 => "bg-success",  // VERDE
+            3 => "bg-dark",     // NEGRO
+            _ => ""
+        };
+    }
+
+}
+}
