@@ -2,6 +2,7 @@
 using ECNORSAppData.Data.Config;
 using ECNORSAppData.Data.DTO;
 using ECNORSAppData.Data.Models;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECNORSAppData.Services
@@ -13,9 +14,7 @@ namespace ECNORSAppData.Services
         Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(int dispensaryId, CancellationToken ct = default);
         Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(int dispensaryId, CancellationToken ct = default); 
         Task<TransactionDto?> GetTransactionBySequenceAsync(long secuencia, CancellationToken ct = default);
-
-
-
+        Task CloseManualAsync(int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
     }
 
     public sealed class CloseLoadService : ICloseLoadService
@@ -147,6 +146,22 @@ namespace ECNORSAppData.Services
                     UnitPrice = t.dblPrecioUnitario
                 })
                 .FirstOrDefaultAsync(ct);
+        }
+    public async Task CloseManualAsync(int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default)
+    {
+            await using var db = CreateDb();
+
+            var p1 = new SqlParameter("@SecuenciaBuscar", secuenciaBuscar);
+            var p2 = new SqlParameter("@VolumenGROSS", volumenGross);
+            var p3 = new SqlParameter("@VolumenNetoCT", volumenNetoCt);
+            var p4 = new SqlParameter("@Temperatura", temperatura);
+
+            db.Database.SetCommandTimeout(120); // por si tarda
+
+            await db.Database.ExecuteSqlRawAsync(
+                "EXEC dbo.sp_Binnacle_CloseManual @SecuenciaBuscar, @VolumenGROSS, @VolumenNetoCT, @Temperatura",
+                new object[] { p1, p2, p3, p4 },
+                ct);
         }
 
 

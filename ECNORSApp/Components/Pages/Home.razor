@@ -232,22 +232,25 @@
                     </div>
                     <div class="col-12 col-md-4 text-center">
                         <label class="form-label fw-bold">ID Transacción</label>
-                        <input class="form-control"
-                                value="@(selectedTransaction?.id.ToString() ?? "")"
-                                readonly />
+                            <input class="form-control input-readonly"
+                                   value="@(selectedTransaction?.id.ToString() ?? "")"
+                                   readonly />
+
                     </div>
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="form-label fw-bold">Dispensario</label>
-                            <input class="form-control fw-bold"
-                                   value="@selectedBinnacle?.DispensaryId"
-                                   readonly />
+                                <input class="form-control input-readonly fw-bold"
+                                       value="@selectedBinnacle?.DispensaryId"
+                                       readonly />
+
                         </div>                    
                        <div class="col-6">
                             <label class="form-label fw-bold">Manguera</label>
-                            <input class="form-control "
-                                   value="@selectedBinnacle?.HoseId"
-                                   readonly />
+                                <input class="form-control input-readonly"
+                                       value="@selectedBinnacle?.HoseId"
+                                       readonly />
+
                         </div>
                     </div>
 
@@ -263,16 +266,18 @@
                     <div class="row g-2">
                         <div class="col-6">
                             <label class="form-label fw-bold">Vendido</label>
-                            <input class="form-control"
-                                   value="@selectedBinnacle?.Sold"
-                                   readonly />
+                                <input class="form-control input-readonly"
+                                       value="@selectedBinnacle?.Sold"
+                                       readonly />
+
                         </div>
 
                         <div class="col-6">
                             <label class="form-label fw-bold">Volumen Vendido</label>
-                            <input class="form-control"
-                                   value="@selectedBinnacle?.SoldVolume"
-                                   readonly />
+                                <input class="form-control input-readonly"
+                                       value="@selectedBinnacle?.SoldVolume"
+                                       readonly />
+
                         </div>
                     </div>
                     @* <label class="form-label fw-bold text-center d-block">Transaccion</label>
@@ -304,18 +309,21 @@
                         <div class="col-6">
                             <label class="form-label fw-bold">V.Bruto(GROSS)</label>
                             <input class="form-control"
-                                   type="number"/>
+                                   type="number"
+                                    @bind="inputNeto" />
                         </div>
                         <div class="col-6">
                                 <label class="form-label fw-bold">V.Neto</label>
                             <input class="form-control"
-                                   type="number" />
+                                   type="number"
+                                  @bind="inputNeto"/>
                         </div>
                     </div>
                     <div class="col-12">
                         <label class="form-label fw-bold">Temperatura</label>
                         <input class="form-control"
-                                type="number" />
+                                type="number"
+                                @bind="inputTemperatura" />
                     </div>
                     @if (!string.IsNullOrWhiteSpace(errorModal))
                     {
@@ -338,6 +346,10 @@
 
 
 @code {
+    private decimal inputGross;
+    private decimal inputNeto;
+    private decimal inputTemperatura;
+
     private List<ConnItem> connections = new();
     private string selectedName = "";
 
@@ -540,8 +552,11 @@
         isSavingModal = true;
         try
         {
-            // Solo cerrar por ahora
-            showBinnacleModal = false;
+            await CloseLoadService.CloseManualAsync(
+                secuenciaBuscar: selectedBinnacle.id,
+                volumenGross: inputGross,
+                volumenNetoCt: inputNeto,
+                temperatura: inputTemperatura);
         }
         finally
         {
