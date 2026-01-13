@@ -14,7 +14,7 @@ namespace ECNORSAppData.Services
         Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(int dispensaryId, CancellationToken ct = default);
         Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(int dispensaryId, CancellationToken ct = default); 
         Task<TransactionDto?> GetTransactionBySequenceAsync(long secuencia, CancellationToken ct = default);
-        Task CloseManualAsync(int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
+        Task CloseManualAsync(int secuenciaBuscar, decimal totalizador,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
     }
 
     public sealed class CloseLoadService : ICloseLoadService
@@ -93,6 +93,9 @@ namespace ECNORSAppData.Services
                     SoldVolume = b.dblVolumenVendido,
                     UnitPrice = b.dblPrecioUnitario,
                     Closed = b.bitCerrada,
+                    Totalizator = b.strTotalizador,
+                    OriginTotalizator = b.strTotalizadorOriginal,
+                    EndTotalizator = b.strTotalizadorFinalOriginal,
 
                     DispensaryId = b.intDispensario,
                     HoseId = b.intManguera,
@@ -147,7 +150,7 @@ namespace ECNORSAppData.Services
                 })
                 .FirstOrDefaultAsync(ct);
         }
-    public async Task CloseManualAsync(int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default)
+    public async Task CloseManualAsync(int secuenciaBuscar, decimal totalizador,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default)
     {
             await using var db = CreateDb();
 
@@ -155,12 +158,13 @@ namespace ECNORSAppData.Services
             var p2 = new SqlParameter("@VolumenGROSS", volumenGross);
             var p3 = new SqlParameter("@VolumenNetoCT", volumenNetoCt);
             var p4 = new SqlParameter("@Temperatura", temperatura);
+            var p5 = new SqlParameter("@Totalizador", totalizador);
 
             db.Database.SetCommandTimeout(120); // por si tarda
 
             await db.Database.ExecuteSqlRawAsync(
-                "EXEC dbo.sp_Binnacle_CloseManual @SecuenciaBuscar, @VolumenGROSS, @VolumenNetoCT, @Temperatura",
-                new object[] { p1, p2, p3, p4 },
+                "EXEC dbo.sp_Binnacle_CloseManual @SecuenciaBuscar,@Totalizador, @VolumenGROSS, @VolumenNetoCT, @Temperatura",
+                new object[] { p1, p2, p3, p4 ,p5},
                 ct);
         }
 

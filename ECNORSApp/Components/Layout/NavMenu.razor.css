@@ -103,3 +103,91 @@
         overflow-y: auto;
     }
 }
+/* ===== Barra superior (ECNORSA) ===== */
+.top-row-ecnorsa {
+    background: #0B2E6D !important; /* Azul ECNORSA */
+    border-bottom: 3px solid #E11C2A; /* Rojo ECNORSA (acento) */
+}
+
+    /* Texto y marca en blanco */
+    .top-row-ecnorsa .navbar-brand {
+        color: #fff !important;
+        font-weight: 700;
+        letter-spacing: .3px;
+    }
+
+    /* Si hay íconos/botones dentro */
+    .top-row-ecnorsa a,
+    .top-row-ecnorsa button,
+    .top-row-ecnorsa svg {
+        color: #fff !important;
+        fill: #fff !important;
+    }
+    /* ===== Barra superior (ya la tienes) ===== */
+.top-row-ecnorsa {
+    background: #0B2E6D !important;
+    border-bottom: 3px solid #E11C2A !important;
+}
+
+.top-row-ecnorsa .navbar-brand {
+    color: #fff !important;
+    font-weight: 700;
+}
+
+/* ===== Sidebar ECNORSA (quita el morado) ===== */
+.sidebar {
+    background: #0A2557 !important; /* azul más oscuro para el menú */
+}
+
+/* Quita el gradiente/morado del template en el contenedor scrolleable */
+.nav-scrollable {
+    background: transparent !important;
+}
+
+/* Links del menú */
+.nav-link {
+    color: rgba(255,255,255,.90) !important;
+    border-radius: 12px;
+    margin: 6px 10px;
+    padding: 10px 12px;
+    transition: background-color .15s ease, transform .05s ease;
+}
+
+/* Hover */
+.nav-link:hover {
+    background: rgba(255,255,255,.10) !important;
+}
+
+/* Activo (ruta actual) */
+.nav-link.active {
+    background: rgba(225,28,42,.18) !important; /* rojo suave */
+    border: 1px solid rgba(225,28,42,.30);
+    color: #fff !important;
+}
+
+/* Iconos del menú (si usas Bootstrap Icons / spans) */
+.nav-link span,
+.nav-link i,
+.nav-link svg {
+    color: #fff !important;
+    fill: #fff !important;
+}
+/* ===== CONTENEDOR DEL LOGO ===== */
+.top-row.top-row-ecnorsa .brand-logo {
+    width: 560px; /* ancho ideal para logo horizontal */
+    height: 52px; /* alto cómodo para header */
+    display: flex;
+    align-items: center;
+}
+
+/* ===== LOGO ECNORSA ===== */
+.top-row.top-row-ecnorsa .app-logo {
+    width: 50%;
+    height: 100%;
+    border-radius: 9px;
+    background: transparent;
+    padding: 0;
+    margin-left: 25%;
+    margin-right: 25%;
+}
+

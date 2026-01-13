@@ -35,7 +35,6 @@
     <AndroidPackageFormat>apk</AndroidPackageFormat>
   </PropertyGroup>
 
-  <!-- ✅ FIX: evitar SIGABRT / mono tls-info.c:918 en Release Android -->
   <PropertyGroup Condition="'$(Configuration)|$(TargetFramework)|$(Platform)'=='Release|net10.0-android|AnyCPU'">
     <PublishTrimmed>false</PublishTrimmed>
     <AndroidLinkMode>None</AndroidLinkMode>
@@ -68,6 +67,14 @@
 
   <ItemGroup>
     <ProjectReference Include="..\ECNORSAppData\ECNORSAppData.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <MauiImage Include="wwwroot\images\logoecnorsa.jpeg" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="wwwroot\images\logoecnorsa.jpeg" />
   </ItemGroup>
 
 </Project>

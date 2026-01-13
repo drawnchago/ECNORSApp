@@ -14,4 +14,7 @@ public class BinnacleDto
     public int? DispensaryId { get; set; }
     public int? HoseId { get; set; } 
     public int? ProductId { get; set; }
+    public string? Totalizator { get; set; }
+    public decimal? OriginTotalizator { get; set; }
+    public decimal? EndTotalizator { get; set; }
 }

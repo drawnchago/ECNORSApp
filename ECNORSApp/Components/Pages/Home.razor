@@ -6,6 +6,7 @@
 @inject IConnectionSelector ConnectionSelector
 @inject SelectedConnectionState ConnState
 @inject ICloseLoadService CloseLoadService
+@inject IJSRuntime JS
 
     <h4>Selecciona la estación </h4>
 
@@ -99,23 +100,25 @@
         {
             <h5>Bitácora (Top 7)</h5>
             <div class="cardish mt-3">
-                <div class="table-title">
+                <div class="table-title header-bitacora">
                     <h5 class="m-0">Bitácora</h5>
                     <span class="badge-soft">Top 7 • últimas 24h</span>
                 </div>
-
                 <div class="table-shell">
                     <table class="nice-table">
                         <thead>
                             <tr>
                                 <th>ID</th>
-                                <th>Fecha</th>
-                                <th>Observaciones</th>
+                                <th class="num">Totalizador</th>
+                                <th class="num">Tot.Original</th>
+                                <th class="num">Tot.Or.Final</th>
                                 <th class="num">Programado</th>
                                 <th class="num">Vendido</th>
                                 <th class="num">Vol. Vendido</th>
                                 <th class="num">Precio</th>
                                 <th>Cerrada</th>
+                                <th>Observaciones</th>
+                                <th>Fecha</th>
                             </tr>
                         </thead>
 
@@ -132,8 +135,9 @@
                                 {
                                    <tr style="cursor:pointer" title="Click para detalle" @onclick="() => OpenBinnacleModal(r)">
                                         <td>@r.id</td>
-                                        <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
-                                        <td>@r.Observations</td>
+                                        <td class="num">@r.Totalizator</td>
+                                        <td class="num">@r.OriginTotalizator</td>
+                                        <td class="num">@r.EndTotalizator</td>
                                         <td class="num">@Format2(r.Scheduled)</td>
                                         <td class="num">@Format2(r.Sold)</td>
                                         <td class="num">@Format2(r.SoldVolume)</td>
@@ -152,6 +156,8 @@
                                                 <span class="pill muted">N/A</span>
                                             }
                                         </td>
+                                        <td>@r.Observations</td>
+                                        <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
                                     </tr>
                                 }
                             }
@@ -162,14 +168,14 @@
 
 
             <h5 class="mt-4">Transacciones (Top 7)</h5>
-            <div class="cardish mt-4">
-                <div class="table-title">
+            <div class="cardish mt-4 card-comfy">
+                <div class="table-title header-transacciones title-comfy">
                     <h5 class="m-0">Transacciones</h5>
                     <span class="badge-soft">Top 7 • últimas 24h</span>
                 </div>
 
-                <div class="table-shell">
-                    <table class="nice-table">
+                <div class="table-shell table-shell-bottom shell-comfy">
+                 <table class="nice-table table-comfy">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -208,144 +214,137 @@
         }
     }
 
-@* ===== MODAL DETALLE (Transacción por secuencia) ===== *@
-@if (showBinnacleModal && selectedBinnacle is not null)
-{
-    <div class="modal-backdrop" @onclick="CloseBinnacleModal"></div>
+    @if (showBinnacleModal && selectedBinnacle is not null)
+    {
+        <div class="modal-backdrop blue-backdrop" @onclick="CloseBinnacleModal"></div>
 
-    <div class="modal d-block" tabindex="-1">
-        <div class="modal-dialog modal-dialog-centered"
-             @onclick:stopPropagation="true">
-            <div class="modal-content">
+        <div class="modal d-block" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered"
+                 @onclick:stopPropagation="true">
+                <div class="modal-content modal-blue">
 
-                <div class="modal-header">
-                    <h5 class="modal-title">Detalle (Secuencia @selectedBinnacle.id)</h5>
-                    <button type="button" class="btn-close" @onclick="CloseBinnacleModal"></button>
-                </div>
-
-                <div class="modal-body">
-                    <div class="col-12 col-md-4 text-center">
-                        <label class="form-label fw-bold"># Secuencia</label>
-                        <input class="form-control text-center fw-bold fs-4 border-primary"
-                               value="@(selectedBinnacle?.id.ToString() ?? "")"
-                               readonly />
+                    <!-- HEADER -->
+                    <div class="modal-header modal-blue-header">
+                        <h5 class="modal-title">
+                            Detalle (Secuencia @selectedBinnacle.id)
+                        </h5>
+                        <button type="button" class="btn-close" @onclick="CloseBinnacleModal"></button>
                     </div>
-                    <div class="col-12 col-md-4 text-center">
-                        <label class="form-label fw-bold">ID Transacción</label>
-                            <input class="form-control input-readonly"
-                                   value="@(selectedTransaction?.id.ToString() ?? "")"
+
+                    <!-- BODY -->
+                    <div class="modal-body">
+
+                        <div class="col-12 col-md-4 text-center mb-2">
+                            <label class="form-label fw-bold text-primary"># Secuencia</label>
+                            <input class="form-control text-center fw-bold fs-4 input-blue-readonly"
+                                   value="@(selectedBinnacle?.id.ToString() ?? "")"
                                    readonly />
+                        </div>
 
-                    </div>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Dispensario</label>
-                                <input class="form-control input-readonly fw-bold"
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Dispensario</label>
+                                <input class="form-control input-blue-readonly fw-bold"
                                        value="@selectedBinnacle?.DispensaryId"
                                        readonly />
+                            </div>
 
-                        </div>                    
-                       <div class="col-6">
-                            <label class="form-label fw-bold">Manguera</label>
-                                <input class="form-control input-readonly"
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Manguera</label>
+                                <input class="form-control input-blue-readonly"
                                        value="@selectedBinnacle?.HoseId"
                                        readonly />
-
+                            </div>
                         </div>
-                    </div>
 
-
-                        <div class="col-12 col-md-4">
+                        <div class="col-12 col-md-4 mb-3">
                             <label class="form-label fw-bold">Producto</label>
                             <input class="form-control fw-bold text-white text-center @GetProductCss()"
                                    value="@GetProductText()"
                                    readonly />
                         </div>
-                        <label class="form-label fw-bold text-center d-block">Bitácora</label>
-
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Vendido</label>
-                                <input class="form-control input-readonly"
+                        <div class="section-separator">
+                            <span>Bitácora</span>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Vendido (Neto)</label>
+                                <input class="form-control input-blue-readonly"
                                        value="@selectedBinnacle?.Sold"
                                        readonly />
+                            </div>
 
-                        </div>
-
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Volumen Vendido</label>
-                                <input class="form-control input-readonly"
+                            <div class="col-6">
+                                <label class="form-label fw-bold">V. Vendido (Bruto)</label>
+                                <input class="form-control input-blue-readonly"
                                        value="@selectedBinnacle?.SoldVolume"
                                        readonly />
+                            </div>
+                        </div>
+                        <div class="section-separator">
+                            <span>Corrección</span>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-12">
+                                <label class="form-label fw-bold">Totalizador</label>
+                                <input class="form-control input-blue-readonly"
+                                       type="number"
+                                       step="0.001"
+                                       value="@selectedBinnacle?.Totalizator"
+                                       readonly />
+                            </div>
+                        </div>
 
-                        </div>
-                    </div>
-                    @* <label class="form-label fw-bold text-center d-block">Transaccion</label>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">V. Bruto (GROSS)</label>
+                                <input class="form-control input-blue"
+                                       type="number"
+                                       @bind="inputGross" />
+                            </div>
 
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Volumen</label>
-                            <input class="form-control"
-                                   type="number"
-                                   step="0.001"
-                                   @bind="editTrxVolume" />
+                            <div class="col-6">
+                                <label class="form-label fw-bold">V. Neto</label>
+                                <input class="form-control input-blue"
+                                       type="number"
+                                       @bind="inputNeto" />
+                            </div>
                         </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Importe</label>
-                            <input class="form-control"
+
+                        <div class="col-12 mb-2">
+                            <label class="form-label fw-bold">Temperatura</label>
+                            <input class="form-control input-blue"
                                    type="number"
-                                   step="0.001"
-                                   @bind="editTrxAmount" />
+                                   @bind="inputTemperatura" />
                         </div>
+
+                        @if (!string.IsNullOrWhiteSpace(errorModal))
+                        {
+                            <div class="text-danger fw-bold mt-2">@errorModal</div>
+                        }
+
                     </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold">Precio Unitario</label>
-                        <input class="form-control"
-                                value="@Format2(selectedTransaction?.UnitPrice)"
-                                readonly />
-                    </div> *@
-                    <label class="form-label fw-bold text-center d-block">Correcion</label>
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">V.Bruto(GROSS)</label>
-                            <input class="form-control"
-                                   type="number"
-                                    @bind="inputNeto" />
-                        </div>
-                        <div class="col-6">
-                                <label class="form-label fw-bold">V.Neto</label>
-                            <input class="form-control"
-                                   type="number"
-                                  @bind="inputNeto"/>
-                        </div>
+
+                    <!-- FOOTER -->
+                    <div class="modal-footer modal-blue-footer">
+                        <button class="btn btn-outline-primary" @onclick="CloseBinnacleModal">
+                            Cerrar
+                        </button>
+
+                        <button class="btn btn-success" @onclick="SaveModal" disabled="@isSavingModal">
+                            @(isSavingModal ? "Guardando..." : "Guardar")
+                        </button>
                     </div>
-                    <div class="col-12">
-                        <label class="form-label fw-bold">Temperatura</label>
-                        <input class="form-control"
-                                type="number"
-                                @bind="inputTemperatura" />
-                    </div>
-                    @if (!string.IsNullOrWhiteSpace(errorModal))
-                    {
-                        <div class="text-danger">@errorModal</div>
-                    }
+
                 </div>
-
-                <div class="modal-footer">
-                    <button class="btn btn-secondary" @onclick="CloseBinnacleModal">Cerrar</button>
-                    <button class="btn btn-primary" @onclick="SaveModal" disabled="@isSavingModal">
-                        @(isSavingModal ? "Guardando..." : "Guardar")
-                    </button>
-                </div>
-
             </div>
         </div>
-    </div>
-}
+    }
 
 
 
-@code {
+    @code {
+    private decimal? inputTotalizador;
     private decimal inputGross;
     private decimal inputNeto;
     private decimal inputTemperatura;
@@ -353,8 +352,8 @@
     private List<ConnItem> connections = new();
     private string selectedName = "";
 
-    private bool isBusy = false;               // bloquea UI durante conectar
-    private bool isConnected = false;          // “estado conectado” para UI
+    private bool isBusy = false;              
+    private bool isConnected = false;         
     private string status = "";
 
     private bool isLoadingDispensarios = false;
@@ -371,7 +370,7 @@
     private List<BinnacleDto> binnacle = new();
     private static string Format2(double? v) => v.HasValue ? v.Value.ToString("N2") : "-";
 
-        // ===== Modal state =====
+    // ===== Modal state =====
     private bool showBinnacleModal = false;
     private bool isSavingModal = false;
     private string? errorModal;
@@ -503,7 +502,7 @@
             StateHasChanged();
         }
     }
-    
+
     private async Task OpenBinnacleModal(BinnacleDto row)
     {
         selectedBinnacle = row;
@@ -546,20 +545,36 @@
 
     private async Task SaveModal()
     {
-        // Aquí todavía no guardamos a BD (porque no me pediste el update).
-        // Si quieres guardar, dime si actualizamos por intID o por intSecuencia y te hago el método Update.
 
         isSavingModal = true;
+
+        if (inputTotalizador == 0 || inputGross <= 0 || inputNeto <= 0 || inputTemperatura == 0 )
+        {
+            await JS.InvokeVoidAsync("alert", "Debe capturar Totalizador,Bruto, Neto y Temperatura.");
+            return;
+        }
+       
+        Console.WriteLine("inputTotalizador=>"+inputTotalizador);
+        Console.WriteLine("inputGross=>"+inputGross);
+        Console.WriteLine("inputNeto=>"+inputNeto);
+        Console.WriteLine("inputTemperatura=>"+inputTemperatura);
+
         try
         {
             await CloseLoadService.CloseManualAsync(
                 secuenciaBuscar: selectedBinnacle.id,
+                totalizador: inputTotalizador ?? 0m,
                 volumenGross: inputGross,
                 volumenNetoCt: inputNeto,
                 temperatura: inputTemperatura);
+
+            await Application.Current!.MainPage!.DisplayAlert("Éxito","La carga fue cerrada correctamente.","OK");
+
         }
-        finally
+        catch (Exception ex)
+
         {
+            await Application.Current!.MainPage!.DisplayAlert("Error","No se pudo cerrar la carga:\n" + ex.Message,"OK");
             isSavingModal = false;
             StateHasChanged();
         }
@@ -570,7 +585,7 @@
     {
         return selectedBinnacle?.ProductId switch
         {
-            1 => "SUPREME",
+            1 => "SUPREME +",
             2 => "EXTRA",
             3 => "DIESEL",
             _ => selectedBinnacle?.ProductId?.ToString() ?? ""
@@ -581,8 +596,8 @@
     {
         return selectedBinnacle?.ProductId switch
         {
-            1 => "bg-primary",  // AZUL
-            2 => "bg-success",  // VERDE
+            1 => "bg-red",  // AZUL
+            2 => "bg-primary",  // VERDE
             3 => "bg-dark",     // NEGRO
             _ => ""
         };
