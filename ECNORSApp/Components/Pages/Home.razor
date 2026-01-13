@@ -269,9 +269,19 @@
 
                         <div class="col-12 col-md-4 mb-3">
                             <label class="form-label fw-bold">Producto</label>
-                            <input class="form-control fw-bold text-white text-center @GetProductCss()"
-                                   value="@GetProductText()"
-                                   readonly />
+                            <input class="form-control fw-bold text-white text-center @(selectedBinnacle?.ProductId switch
+                               {
+                                   1 => "bg-red",
+                                   2 => "bg-primary",
+                                   3 => "bg-dark",
+                                   _ => ""
+                               })"
+                               value="@(
+                                    selectedBinnacle?.ProductId == 1 ? "SUPREME +" :
+                                   selectedBinnacle?.ProductId == 2 ? "EXTRA" :
+                                   selectedBinnacle?.ProductId == 3 ? "DIESEL" :
+                                   selectedBinnacle?.ProductId?.ToString() ?? "")"
+                               readonly />
                         </div>
                         <div class="section-separator">
                             <span>Bitácora</span>
@@ -397,13 +407,12 @@
     {
         connections = ConnectionSelector.GetConnections().ToList();
         selectedName = ConnState.GetSelectedName() ?? "";
-        // arrancamos como desconectado (puedes cambiarlo si quieres recordar conexión)
         isConnected = false;
     }
 
     private async Task ConnectAsync()
     {
-        if (!CanConnect || isBusy || isConnected) return;
+        if (!CanConnect || isConnected) return;
 
         isBusy = true;
         status = "";
@@ -415,16 +424,12 @@
 
         try
         {
-            // 1) Guardar selección (esto define qué connection string usará el DbContextFactory)
             ConnState.SetSelectedName(selectedName);
 
-            // 2) Leer a qué BD/servidor realmente apunta (para validar que sí cambió)
             var info = await CloseLoadService.GetDbInfoAsync();
 
-            // 3) “Validar conexión” cargando datos (si falla, no conectó)
             await LoadDispensariosAsync();
 
-            // 4) OK
             isConnected = true;
             status = $"Conexión establecida ✅ ({info})";
         }
@@ -432,7 +437,7 @@
         {
             isConnected = false;
             status = "Error al conectar ❌";
-            errorDispensarios = ex.ToString(); // temporal para ver todo; luego lo regresas a ex.Message
+            errorDispensarios = ex.ToString();
         }
     }
 
@@ -453,9 +458,6 @@
 
     private void CancelConnection()
     {
-        // if (isBusy) return;
-
-        // “Cancelar conexión” = reset UI + limpiar selección (opcional)
         isConnected = false;
         status = "Desconectada 🔴";
 
@@ -463,7 +465,6 @@
         selectedDispensarioId = null;
         errorDispensarios = null;
 
-        // Opcional: limpiar conexión guardada
         ConnState.SetSelectedName("");
         selectedName = "";
         isBusy=false;
@@ -521,7 +522,7 @@
         try
         {
             selectedTransaction =
-                await CloseLoadService.GetTransactionBySequenceAsync(row.id); // row.id = secuencia
+                await CloseLoadService.GetTransactionBySequenceAsync(row.id);
 
             if (selectedTransaction is not null)
             {
@@ -587,28 +588,5 @@
         }
         await Task.CompletedTask;
     }
-
-    private string GetProductText()
-    {
-        return selectedBinnacle?.ProductId switch
-        {
-            1 => "SUPREME +",
-            2 => "EXTRA",
-            3 => "DIESEL",
-            _ => selectedBinnacle?.ProductId?.ToString() ?? ""
-        };
-    }
-
-    private string GetProductCss()
-    {
-        return selectedBinnacle?.ProductId switch
-        {
-            1 => "bg-red",  // AZUL
-            2 => "bg-primary",  // VERDE
-            3 => "bg-dark",     // NEGRO
-            _ => ""
-        };
-    }
-
 }
 }
