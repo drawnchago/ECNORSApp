@@ -10,7 +10,7 @@
 
     <h4>Selecciona la estación </h4>
 
-    @if (!string.IsNullOrWhiteSpace(status))
+    @* @if (!string.IsNullOrWhiteSpace(status))
     {
         <div class="mt-2 d-flex align-items-center">
             <span>@status</span>
@@ -29,31 +29,41 @@
         {
             <div class="text-danger mt-1">@errorDispensarios</div>
         }
-    }
+    } *@
 
-    <div class="d-flex align-items-center gap-2 mt-2">
-        <select class="form-select" style="max-width:260px" @bind="selectedName" disabled="@isBusy">
-            <option value="">-- Selecciona --</option>
-            @foreach (var c in connections)
+        <div class="d-flex align-items-center gap-2 mt-2">
+            <select class="form-select" style="max-width:260px" @bind="selectedName" disabled="@isBusy">
+                <option value="">-- Selecciona --</option>
+                @foreach (var c in connections)
+                {
+                    <option value="@c.name">@c.name</option>
+                }
+            </select>
+            
+            @if (!isConnected)
             {
-                <option value="@c.name">@c.name</option>
+                    <button class="btn btn-primary"
+                            @onclick="ConnectAsync"
+                            disabled="@(!CanConnect || isBusy || isConnected)">
+                        @if (isBusy)
+                        {
+                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                            <span>Conectando...</span>
+                        }else{
+                           <span>Conectar</span>
+                        }
+                    </button>
             }
-        </select>
 
-        <button class="btn btn-primary"
-                @onclick="ConnectAsync"
-                disabled="@(!CanConnect || isBusy || isConnected)">
-            @if (isBusy)
+            @if (isConnected)
             {
-                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                <span>Conectando...</span>
+                <button class="btn btn-danger"
+                    @onclick="CancelConnection">
+                            Desconectar
+                </button>
             }
-            else
-            {
-                <span>Conectar</span>
-            }
-        </button>
-    </div>
+        </div>
+
 
 
 @if (isConnected)
@@ -424,10 +434,6 @@
             status = "Error al conectar ❌";
             errorDispensarios = ex.ToString(); // temporal para ver todo; luego lo regresas a ex.Message
         }
-        finally
-        {
-            isBusy = false;
-        }
     }
 
     private async Task LoadDispensariosAsync()
@@ -447,7 +453,7 @@
 
     private void CancelConnection()
     {
-        if (isBusy) return;
+        // if (isBusy) return;
 
         // “Cancelar conexión” = reset UI + limpiar selección (opcional)
         isConnected = false;
@@ -460,6 +466,7 @@
         // Opcional: limpiar conexión guardada
         ConnState.SetSelectedName("");
         selectedName = "";
+        isBusy=false;
     }
 
     private async Task OnDispensaryChanged(ChangeEventArgs e)
