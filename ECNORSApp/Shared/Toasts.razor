@@ -1,0 +1,66 @@
+@implements IDisposable
+@inject ECNORSApp.Services.IToastService ToastService
+
+<div class="toast-container">
+    @foreach (var t in _items)
+    {
+        <div class="toast-card @CssFor(t.Level)" @key="t.Id">
+            <div class="toast-head">
+                <strong>@t.Title</strong>
+                <button class="toast-x" @onclick="() => Dismiss(t.Id)">×</button>
+            </div>
+            <div class="toast-body">@t.Message</div>
+        </div>
+    }
+</div>
+
+@code {
+    private readonly List<ECNORSApp.Services.ToastMessage> _items = new();
+
+    protected override void OnInitialized()
+    {
+        ToastService.OnShow += Show;
+        ToastService.OnRemove += Remove;
+    }
+
+    private void Show(ECNORSApp.Services.ToastMessage msg)
+    {
+        _items.Insert(0, msg);
+        InvokeAsync(StateHasChanged);
+
+        _ = AutoDismissAsync(msg.Id, msg.TimeoutMs);
+    }
+
+    private async Task AutoDismissAsync(Guid id, int ms)
+    {
+        try
+        {
+            await Task.Delay(ms);
+            Dismiss(id);
+        }
+        catch { /* ignore */ }
+    }
+
+    private void Dismiss(Guid id) => ToastService.Remove(id);
+
+    private void Remove(Guid id)
+    {
+        var idx = _items.FindIndex(x => x.Id == id);
+        if (idx >= 0) _items.RemoveAt(idx);
+        InvokeAsync(StateHasChanged);
+    }
+
+    private static string CssFor(ECNORSApp.Services.ToastLevel lvl) => lvl switch
+    {
+        ECNORSApp.Services.ToastLevel.Success => "toast-success",
+        ECNORSApp.Services.ToastLevel.Warning => "toast-warning",
+        ECNORSApp.Services.ToastLevel.Error => "toast-error",
+        _ => "toast-info"
+    };
+
+    public void Dispose()
+    {
+        ToastService.OnShow -= Show;
+        ToastService.OnRemove -= Remove;
+    }
+}

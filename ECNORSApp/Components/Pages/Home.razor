@@ -6,30 +6,27 @@
 @inject IConnectionSelector ConnectionSelector
 @inject SelectedConnectionState ConnState
 @inject ICloseLoadService CloseLoadService
-@inject IJSRuntime JS
+@inject ECNORSApp.Services.IToastService ToastService
+@inject ILogger<Home> Logger
+@inject ECNORSApp.Services.IFileLoggerService FileLogger
+
+@* @inject IJSRuntime JS *@
 
     <h4>Selecciona la estación </h4>
 
-    @* @if (!string.IsNullOrWhiteSpace(status))
-    {
-        <div class="mt-2 d-flex align-items-center">
-            <span>@status</span>
 
-            @if (isConnected)
-            {
-                <button class="btn btn-danger btn-sm ms-auto"
-                        @onclick="CancelConnection"
-                        disabled="@isBusy">
-                    Desconectar
-                </button>
-            }
-        </div>
+@* <button class="btn btn-info" @onclick="ShowLogPath">
+    Ver ruta del log
+</button>
 
-        @if (!string.IsNullOrWhiteSpace(errorDispensarios))
-        {
-            <div class="text-danger mt-1">@errorDispensarios</div>
-        }
-    } *@
+<button class="btn btn-success" @onclick="WriteTestLog">
+    Escribir prueba
+</button> *@
+
+<button class="btn btn-warning" @onclick="ExportLog">
+    Exportar log a Descargas
+</button>
+
 
         <div class="d-flex align-items-center gap-2 mt-2">
             <select class="form-select" style="max-width:260px" @bind="selectedName" disabled="@isBusy">
@@ -403,7 +400,7 @@
     private double? editTrxUnitPrice;
 
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
         connections = ConnectionSelector.GetConnections().ToList();
         selectedName = ConnState.GetSelectedName() ?? "";
@@ -411,11 +408,10 @@
     }
 
     private async Task ConnectAsync()
-    {
+    {  
         if (!CanConnect || isConnected) return;
 
         isBusy = true;
-        status = "";
         errorDispensarios = null;
 
         dispensarios.Clear();
@@ -425,19 +421,18 @@
         try
         {
             ConnState.SetSelectedName(selectedName);
-
             var info = await CloseLoadService.GetDbInfoAsync();
-
             await LoadDispensariosAsync();
-
             isConnected = true;
-            status = $"Conexión establecida ✅ ({info})";
+
+            await FileLogger.InfoAsync($"Conectado a {selectedName}");
+            ToastService.ShowSuccess("Conexion establecida.");
         }
         catch (Exception ex)
         {
             isConnected = false;
-            status = "Error al conectar ❌";
-            errorDispensarios = ex.ToString();
+            await FileLogger.ErrorAsync("ConnectAsync=>"+ex.Message);
+            ToastService.ShowError(ex.Message, "Error al establecer conexion");
         }
     }
 
@@ -448,6 +443,11 @@
         {
             var list = await CloseLoadService.GetDispensariosAsync();
             dispensarios = list.ToList();
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync("LoadDispensariosAsync=>"+ex.Message);
+            ToastService.ShowError(ex.Message, "Error al obtener los dispensarios");
         }
         finally
         {
@@ -492,6 +492,8 @@
         {
             var dispId = selectedDispensarioId.Value;
 
+            await FileLogger.InfoAsync("Dispensario seleccionado =>" + dispId);
+
             var bTask = CloseLoadService.GetBinnacleTopAsync(dispId);
             var tTask = CloseLoadService.GetTransactionsTopAsync(dispId);
 
@@ -502,7 +504,8 @@
         }
         catch (Exception ex)
         {
-            errorTables = ex.ToString(); // para ver error real si falla
+            await FileLogger.ErrorAsync("OnDispensaryChanged=>"+ex.Message);
+            ToastService.ShowError("Error al obtener la bitacora y/o transacciones");
         }
         finally
         {
@@ -558,14 +561,10 @@
 
         if (inputTotalizador == 0 || inputGross <= 0 || inputNeto <= 0 || inputTemperatura == 0 )
         {
-            await JS.InvokeVoidAsync("alert", "Debe capturar Totalizador,Bruto, Neto y Temperatura.");
+            await FileLogger.InfoAsync("Debe capturar secuenciaBuscar=> " + selectedBinnacle.id + "Totalizador=> " + inputTotalizador + ", Bruto (gross) => " + inputGross + ", Neto => " + inputNeto + "y Temperatura => " + inputTemperatura);
+            ToastService.ShowError("Debe capturar Totalizador,Bruto, Neto y Temperatura.");
             return;
         }
-       
-        Console.WriteLine("inputTotalizador=>"+inputTotalizador);
-        Console.WriteLine("inputGross=>"+inputGross);
-        Console.WriteLine("inputNeto=>"+inputNeto);
-        Console.WriteLine("inputTemperatura=>"+inputTemperatura);
 
         try
         {
@@ -576,17 +575,34 @@
                 volumenNetoCt: inputNeto,
                 temperatura: inputTemperatura);
 
-            await Application.Current!.MainPage!.DisplayAlert("Éxito","La carga fue cerrada correctamente.","OK");
-
+            await FileLogger.InfoAsync("La carga fue cerrada correctamente.");
+            ToastService.ShowSuccess("La carga fue cerrada correctamente.");
         }
         catch (Exception ex)
-
         {
-            await Application.Current!.MainPage!.DisplayAlert("Error","No se pudo cerrar la carga:\n" + ex.Message,"OK");
+            await FileLogger.ErrorAsync("SaveModal()" + "=>" + ex.Message);
+            ToastService.ShowError(ex.Message, "No se pudo cerrar la carga");
             isSavingModal = false;
             StateHasChanged();
         }
         await Task.CompletedTask;
     }
+    private async Task ShowLogPath()
+{
+    var path = await FileLogger.GetLogFilePathAsync();
+    ToastService.ShowInfo(path, "Ruta real del log");
+}
+
+private async Task WriteTestLog()
+{
+    await FileLogger.InfoAsync("Prueba: el logger está funcionando ✅");
+    ToastService.ShowSuccess("Se escribió una línea al log");
+}
+    private async Task ExportLog()
+    {
+        await FileLogger.ExportToDownloadsAsync();
+        ToastService.ShowSuccess("Log copiado a Descargas");
+    }
+
 }
 }

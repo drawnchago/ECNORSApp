@@ -1,4 +1,5 @@
-﻿using ECNORSAppData.Data;
+﻿using ECNORSApp.Services;
+using ECNORSAppData.Data;
 using ECNORSAppData.Data.Config;
 using ECNORSAppData.Services;
 using Microsoft.EntityFrameworkCore;
@@ -36,6 +37,9 @@ namespace ECNORSApp
 
             builder.Services.AddSingleton<IConnectionSelector, ConnectionSelector>();
             builder.Services.AddSingleton<SelectedConnectionState>();
+            builder.Services.AddSingleton<IToastService, ToastService>();
+            builder.Services.AddSingleton<IFileLoggerService, FileLoggerService>();
+
 
             builder.Services.AddDbContextFactory<AppDbContext>((sp, opt) =>
             {
@@ -52,9 +56,11 @@ namespace ECNORSApp
 
                 opt.UseSqlServer(cs);
             });
-
             builder.Services.AddScoped<ICloseLoadService, CloseLoadService>();
-            return builder.Build();
+            var app = builder.Build();
+            _ = app.Services.GetRequiredService<IFileLoggerService>();
+
+            return app;
         }
     }
 }
