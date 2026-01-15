@@ -1,11 +1,10 @@
 ﻿using ECNORSApp.Services;
-using ECNORSAppData.Data;
 using ECNORSAppData.Data.Config;
-using ECNORSAppData.Services;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
+using static ECNORSApp.Services.CloseLoadApi;
 
 namespace ECNORSApp
 {
@@ -35,28 +34,22 @@ namespace ECNORSApp
                 builder.Configuration.AddJsonStream(stream);
             }
 
+            // UI / Config
             builder.Services.AddSingleton<IConnectionSelector, ConnectionSelector>();
             builder.Services.AddSingleton<SelectedConnectionState>();
             builder.Services.AddSingleton<IToastService, ToastService>();
             builder.Services.AddSingleton<IFileLoggerService, FileLoggerService>();
 
-
-            builder.Services.AddDbContextFactory<AppDbContext>((sp, opt) =>
+            // HttpClient (typed client)
+            builder.Services.AddHttpClient<CloseLoadApi>(client =>
             {
-                var selector = sp.GetRequiredService<IConnectionSelector>();
-                var state = sp.GetRequiredService<SelectedConnectionState>();
-
-                var all = selector.GetConnections();
-                var selectedName = state.GetSelectedName();
-                var item = all.FirstOrDefault(x => x.name == selectedName) ?? all.FirstOrDefault();
-
-                var cs = item is not null
-                    ? selector.BuildConnectionString(item)
-                    : builder.Configuration.GetConnectionString("DefaultConnection");
-
-                opt.UseSqlServer(cs);
+                client.BaseAddress = new Uri("http://172.20.11.85:5090/");
+                client.Timeout = TimeSpan.FromSeconds(60);
             });
-            builder.Services.AddScoped<ICloseLoadService, CloseLoadService>();
+
+            // Interfaz -> implementación (una sola vez)
+            builder.Services.AddScoped<ICloseLoadApi>(sp => sp.GetRequiredService<CloseLoadApi>());
+
             var app = builder.Build();
             _ = app.Services.GetRequiredService<IFileLoggerService>();
 

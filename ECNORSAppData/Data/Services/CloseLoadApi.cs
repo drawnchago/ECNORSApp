@@ -1,0 +1,78 @@
+﻿using ECNORSAppData.Data.DTO;
+using System.Net.Http.Json;
+using static ECNORSApp.Services.CloseLoadApi;
+
+namespace ECNORSApp.Services;
+
+public sealed class CloseLoadApi : ICloseLoadApi
+{
+    private readonly HttpClient _http;
+
+    public interface ICloseLoadApi
+    {
+        Task<DbInfoResp<string>?> GetDbInfoAsync(string station, CancellationToken ct = default);
+        Task<IReadOnlyList<DispensaryDto>> GetDispensariosAsync(string station, CancellationToken ct = default);
+        Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(string station,int dispensaryId,CancellationToken ct = default);
+        Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station, int dispensaryId, CancellationToken ct = default);
+        Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default);
+        Task CloseManualAsync(string station,int secuenciaBuscar,decimal totalizador,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
+    }
+    public CloseLoadApi(HttpClient http) => _http = http;
+
+    public async Task<DbInfoResp<string>?> GetDbInfoAsync(string station,CancellationToken ct = default)
+    {
+        var url = $"api/station/db-info?station={Uri.EscapeDataString(station)}";
+        var res = await _http.GetFromJsonAsync<DbInfoResp<string>>(url, ct);
+        return res;
+    }
+    public async Task<IReadOnlyList<DispensaryDto>> GetDispensariosAsync(string station, CancellationToken ct = default)
+    {
+        var url = $"api/dispensary?station={Uri.EscapeDataString(station)}";
+
+        using var resp = await _http.GetAsync(url, ct);
+        resp.EnsureSuccessStatusCode();
+
+        var wrapper = await resp.Content.ReadFromJsonAsync<DbInfoResp<List<DispensaryDto>>>(cancellationToken: ct);
+
+        return (IReadOnlyList<DispensaryDto>?)wrapper?.Data
+               ?? Array.Empty<DispensaryDto>();
+    }
+    public async Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(string station,int dispensaryId,CancellationToken ct = default)
+    {
+        var response = await _http.GetFromJsonAsync<DbInfoResp<List<BinnacleDto>>>($"api/binnacle/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}", ct);
+        var list = response?.Data;
+        return list is not null? list: Array.Empty<BinnacleDto>();
+    }
+    public async Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station, int dispensaryId, CancellationToken ct = default)
+        => await _http.GetFromJsonAsync<IReadOnlyList<TransactionDto>>(
+               $"api/transaction/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}", ct)
+           ?? Array.Empty<TransactionDto>();
+
+    public Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default)
+        => _http.GetFromJsonAsync<TransactionDto>(
+            $"api/transaction/by-sequence/{secuencia}?station={Uri.EscapeDataString(station)}", ct);
+
+    public async Task CloseManualAsync(string station, int secuenciaBuscar, decimal totalizador, decimal volumenGross, decimal volumenNetoCt, decimal temperatura, CancellationToken ct = default)
+    {
+        var url = $"api/binnacle/close-manual?station={Uri.EscapeDataString(station)}";
+
+        var body = new
+        {
+            secuenciaBuscar,
+            totalizador,
+            volumenGross,
+            volumenNetoCt,
+            temperatura
+        };
+
+        var resp = await _http.PostAsJsonAsync(url, body, ct);
+        resp.EnsureSuccessStatusCode();
+    }
+
+    public sealed class DbInfoResp<T>
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+        public T? Data { get; set; }
+    }
+}
