@@ -1,68 +1,54 @@
 ﻿@page "/"
 @using ECNORSAppData.Data.Config
-@using ECNORSAppData.Data.Models
 @using ECNORSAppData.Data.DTO
 @using ECNORSApp.Services
-@using System.Text.Json.Serialization;
 @inject CloseLoadApi CloseLoadApi
 @inject IConnectionSelector ConnectionSelector
 @inject SelectedConnectionState ConnState
 @inject ECNORSApp.Services.IToastService ToastService
-@inject ILogger<Home> Logger
 @inject ECNORSApp.Services.IFileLoggerService FileLogger
 
-@* @inject IJSRuntime JS *@
+<h4>Selecciona la estación</h4>
 
-    <h4>Selecciona la estación </h4>
-
-
-@* <button class="btn btn-info" @onclick="ShowLogPath">
-    Ver ruta del log
-</button>
-
-<button class="btn btn-success" @onclick="WriteTestLog">
-    Escribir prueba
-</button> *@
-
-<button class="btn btn-warning" @onclick="ExportLog">
+<button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
     Exportar log a Descargas
 </button>
 
+<div class="d-flex align-items-center gap-2 mt-2">
+    <select class="form-select" style="max-width:260px"
+            @bind="selectedName"
+            disabled="@(isBusy || isConnected)">
+        <option value="">-- Selecciona --</option>
+        @foreach (var c in connections)
+        {
+            <option value="@c.name">@c.name</option>
+        }
+    </select>
 
-        <div class="d-flex align-items-center gap-2 mt-2">
-            <select class="form-select" style="max-width:260px" @bind="selectedName" disabled="@isBusy">
-                <option value="">-- Selecciona --</option>
-                @foreach (var c in connections)
-                {
-                    <option value="@c.name">@c.name</option>
-                }
-            </select>
-            
-            @if (!isConnected)
+    @if (!isConnected)
+    {
+        <button class="btn btn-primary"
+                @onclick="ConnectAsync"
+                disabled="@(!CanConnect || isBusy)">
+            @if (isBusy)
             {
-                    <button class="btn btn-primary"
-                            @onclick="ConnectAsync"
-                            disabled="@(!CanConnect || isBusy || isConnected)">
-                        @if (isBusy)
-                        {
-                            <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                            <span>Conectando...</span>
-                        }else{
-                           <span>Conectar</span>
-                        }
-                    </button>
+                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                <span>Conectando...</span>
             }
-
-            @if (isConnected)
+            else
             {
-                <button class="btn btn-danger"
-                    @onclick="CancelConnection">
-                            Desconectar
-                </button>
+                <span>Conectar</span>
             }
-        </div>
+        </button>
+    }
 
-
+    @if (isConnected)
+    {
+        <button class="btn btn-danger" @onclick="Disconnect">
+            Desconectar
+        </button>
+    }
+</div>
 
 @if (isConnected)
 {
@@ -70,29 +56,28 @@
 
     <h5>Dispensarios</h5>
 
-    @if (isLoadingDispensarios)
+    @if (isLoadingDispensaries)
     {
         <div>Cargando dispensarios...</div>
     }
-    else if (!string.IsNullOrWhiteSpace(errorDispensarios))
+    else if (!string.IsNullOrWhiteSpace(dispensariesError))
     {
-        <div class="text-danger">@errorDispensarios</div>
+        <div class="text-danger">@dispensariesError</div>
     }
     else
     {
-
         <select class="form-select"
-                value="@selectedDispensarioId"
-                @onchange="async e => await OnDispensaryChanged(e)">
+                value="@selectedDispensaryId"
+                @onchange="OnDispensaryChangedAsync">
             <option value="">-- Selecciona dispensario --</option>
-            @foreach (var d in dispensarios)
+            @foreach (var d in dispensaries)
             {
                 <option value="@d.DispensaryId">@d.DisplayName</option>
             }
         </select>
-
     }
-    @if (selectedDispensarioId.HasValue)
+
+    @if (selectedDispensaryId.HasValue)
     {
         <hr class="my-3" />
 
@@ -100,9 +85,9 @@
         {
             <div>Cargando Bitácora y Transacciones...</div>
         }
-        else if (!string.IsNullOrWhiteSpace(errorTables))
+        else if (!string.IsNullOrWhiteSpace(tablesError))
         {
-            <div class="text-danger">@errorTables</div>
+            <div class="text-danger">@tablesError</div>
         }
         else
         {
@@ -134,14 +119,14 @@
                             @if (binnacle.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="8" class="muted">Sin registros para este dispensario.</td>
+                                    <td colspan="11" class="muted">Sin registros para este dispensario.</td>
                                 </tr>
                             }
                             else
                             {
                                 @foreach (var r in binnacle)
                                 {
-                                   <tr style="cursor:pointer" title="Click para detalle" @onclick="() => OpenBinnacleModal(r)">
+                                    <tr style="cursor:pointer" title="Click para detalle" @onclick="() => OpenBinnacleModalAsync(r)">
                                         <td>@r.id</td>
                                         <td class="num">@r.Totalizator</td>
                                         <td class="num">@r.OriginTotalizator</td>
@@ -174,7 +159,6 @@
                 </div>
             </div>
 
-
             <h5 class="mt-4">Transacciones (Top 7)</h5>
             <div class="cardish mt-4 card-comfy">
                 <div class="table-title header-transacciones title-comfy">
@@ -183,7 +167,7 @@
                 </div>
 
                 <div class="table-shell table-shell-bottom shell-comfy">
-                 <table class="nice-table table-comfy">
+                    <table class="nice-table table-comfy">
                         <thead>
                             <tr>
                                 <th>ID</th>
@@ -218,7 +202,6 @@
                     </table>
                 </div>
             </div>
-
         }
     }
 
@@ -227,21 +210,19 @@
         <div class="modal-backdrop blue-backdrop" @onclick="CloseBinnacleModal"></div>
 
         <div class="modal d-block" tabindex="-1">
-            <div class="modal-dialog modal-dialog-centered"
-                 @onclick:stopPropagation="true">
+            <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
                 <div class="modal-content modal-blue">
 
-                    <!-- HEADER -->
                     <div class="modal-header modal-blue-header">
                         <h5 class="modal-title">
                             Detalle (Secuencia @selectedBinnacle.id)
                         </h5>
                         <button type="button" class="btn-close" @onclick="CloseBinnacleModal"></button>
                     </div>
-
-                    <!-- BODY -->
+                    <div class="section-separator">
+                        <span>Bitácora</span>
+                    </div>
                     <div class="modal-body">
-
                         <div class="col-12 col-md-4 text-center mb-2">
                             <label class="form-label fw-bold text-primary"># Secuencia</label>
                             <input class="form-control text-center fw-bold fs-4 input-blue-readonly"
@@ -254,14 +235,14 @@
                                 <label class="form-label fw-bold">Dispensario</label>
                                 <input class="form-control input-blue-readonly fw-bold"
                                        value="@selectedBinnacle?.DispensaryId"
-                                       readonly />
+                                       readonly disabled/>
                             </div>
 
                             <div class="col-6">
                                 <label class="form-label fw-bold">Manguera</label>
                                 <input class="form-control input-blue-readonly"
                                        value="@selectedBinnacle?.HoseId"
-                                       readonly />
+                                       readonly disabled/>
                             </div>
                         </div>
 
@@ -281,75 +262,80 @@
                                    selectedBinnacle?.ProductId?.ToString() ?? "")"
                                readonly />
                         </div>
-                        <div class="section-separator">
-                            <span>Bitácora</span>
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Programado</label>
+                            <input class="form-control input-blue-readonly"
+                                   value="@Format2(selectedBinnacle?.Scheduled)"
+                                   readonly disabled />
                         </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Vendido (Neto)</label>
-                                <input class="form-control input-blue-readonly"
-                                       value="@selectedBinnacle?.Sold"
-                                       readonly />
-                            </div>
 
-                            <div class="col-6">
-                                <label class="form-label fw-bold">V. Vendido (Bruto)</label>
-                                <input class="form-control input-blue-readonly"
-                                       value="@selectedBinnacle?.SoldVolume"
-                                       readonly />
-                            </div>
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Vendido</label>
+                            <input class="form-control input-blue-readonly"
+                                   value="@Format2(selectedBinnacle?.Sold)"
+                                   readonly disabled />
                         </div>
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Volumen vendido</label>
+                            <input class="form-control input-blue-readonly"
+                                   value="@Format2(selectedBinnacle?.SoldVolume)"
+                                   readonly disabled />
+                        </div>
+
+                        <div class="col-6">
+                            <label class="form-label fw-bold">Precio unitario</label>
+                            <input class="form-control input-blue-readonly"
+                                   value="@Format2(selectedBinnacle?.UnitPrice)"
+                                   readonly disabled />
+                        </div>
+                    </div>
                         <div class="section-separator">
                             <span>Corrección</span>
                         </div>
+
                         <div class="row g-2 mb-2">
                             <div class="col-12">
                                 <label class="form-label fw-bold">Totalizador</label>
-                                <input class="form-control input-blue-readonly"
+                                <input class="form-control input-blue"
                                        type="number"
                                        step="0.001"
-                                       value="@selectedBinnacle?.Totalizator"
-                                       readonly />
+                                       @bind="inputTotalizer" />
                             </div>
                         </div>
 
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label fw-bold">V. Bruto (GROSS)</label>
-                                <input class="form-control input-blue"
-                                       type="number"
-                                       @bind="inputGross" />
+                                <input class="form-control input-blue" type="number" @bind="inputGross" />
                             </div>
 
                             <div class="col-6">
                                 <label class="form-label fw-bold">V. Neto</label>
-                                <input class="form-control input-blue"
-                                       type="number"
-                                       @bind="inputNeto" />
+                                <input class="form-control input-blue" type="number" @bind="inputNet" />
                             </div>
                         </div>
 
                         <div class="col-12 mb-2">
                             <label class="form-label fw-bold">Temperatura</label>
-                            <input class="form-control input-blue"
-                                   type="number"
-                                   @bind="inputTemperatura" />
+                            <input class="form-control input-blue" type="number" @bind="inputTemperature" />
                         </div>
 
-                        @if (!string.IsNullOrWhiteSpace(errorModal))
+                        @if (!string.IsNullOrWhiteSpace(modalError))
                         {
-                            <div class="text-danger fw-bold mt-2">@errorModal</div>
+                            <div class="text-danger fw-bold mt-2">@modalError</div>
                         }
-
                     </div>
 
-                    <!-- FOOTER -->
                     <div class="modal-footer modal-blue-footer">
                         <button class="btn btn-outline-primary" @onclick="CloseBinnacleModal">
                             Cerrar
                         </button>
 
-                        <button class="btn btn-success" @onclick="SaveModal" disabled="@isSavingModal">
+                        <button class="btn btn-success" @onclick="SaveModalAsync" disabled="@isSavingModal">
                             @(isSavingModal ? "Guardando..." : "Guardar")
                         </button>
                     </div>
@@ -358,169 +344,187 @@
             </div>
         </div>
     }
+}
 
+@code {
+    private CancellationTokenSource? _connectCts;
 
-
-    @code {
-    private decimal? inputTotalizador;
+    // Modal inputs
+    private decimal? inputTotalizer;
     private decimal inputGross;
-    private decimal inputNeto;
-    private decimal inputTemperatura;
+    private decimal inputNet;
+    private decimal inputTemperature;
 
     private List<ConnItem> connections = new();
     private string selectedName = "";
 
-    private bool isBusy = false;              
-    private bool isConnected = false;         
-    private string status = "";
+    private bool isBusy;
+    private bool isConnected;
 
-    private bool isLoadingDispensarios = false;
-    private string? errorDispensarios;
+    private bool isLoadingDispensaries;
+    private string? dispensariesError;
 
-    private List<DispensaryDto> dispensarios = new(); 
-    private int? selectedDispensarioId;
+    private List<DispensaryDto> dispensaries = new();
+    private int? selectedDispensaryId;
 
-    private bool CanConnect => !string.IsNullOrWhiteSpace(selectedName);
-    private bool HasSelectedDispensario => selectedDispensarioId.HasValue;
-    private bool isLoadingTables = false;
-    private string? errorTables;
+    private bool isLoadingTables;
+    private string? tablesError;
+
     private List<TransactionDto> transactions = new();
     private List<BinnacleDto> binnacle = new();
+
     private static string Format2(double? v) => v.HasValue ? v.Value.ToString("N2") : "-";
 
-    // ===== Modal state =====
-    private bool showBinnacleModal = false;
-    private bool isSavingModal = false;
-    private string? errorModal;
-
+    // Modal state
+    private bool showBinnacleModal;
+    private bool isSavingModal;
+    private string? modalError;
     private BinnacleDto? selectedBinnacle;
 
-    private TransactionDto? selectedTransaction;
-    private double? editTrxVolume;
-    private double? editTrxAmount;
-    private double? editTrxUnitPrice;
+    private bool CanConnect => !string.IsNullOrWhiteSpace(selectedName);
 
-
-    protected override async Task OnInitializedAsync()
+    protected override Task OnInitializedAsync()
     {
         connections = ConnectionSelector.GetConnections().ToList();
         selectedName = ConnState.GetSelectedName() ?? "";
         isConnected = false;
+        return Task.CompletedTask;
     }
 
-private async Task ConnectAsync()
-{
-    if (!CanConnect || isConnected) return;
-
-    isBusy = true;
-    errorDispensarios = null;
-
-    dispensarios.Clear();
-    selectedDispensarioId = null;
-    isConnected = false;
-
-    try
+    private async Task ConnectAsync()
     {
-        ConnState.SetSelectedName(selectedName);
-        var result = await CloseLoadApi.GetDbInfoAsync(selectedName);
+        if (!CanConnect || isConnected) return;
 
-        if (result is null || !result.Success)
+        isBusy = true;
+        dispensariesError = null;
+
+        dispensaries.Clear();
+        selectedDispensaryId = null;
+        transactions.Clear();
+        binnacle.Clear();
+
+        _connectCts?.Cancel();
+        _connectCts?.Dispose();
+        _connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var ct = _connectCts.Token;
+
+        try
         {
-            ToastService.ShowError(result?.Message ?? "No se recibió información de conexión.");
-            return;
+            ConnState.SetSelectedName(selectedName);
+
+            var result = await CloseLoadApi.GetDbInfoAsync(selectedName, ct);
+
+            if (result is null || !result.Success)
+            {
+                ToastService.ShowError(result?.Message ?? "No se recibió información de conexión.");
+                return;
+            }
+
+            await LoadDispensariesAsync();
+
+            isConnected = true;
+
+            await FileLogger.InfoAsync($"Conectado a {selectedName}");
+            ToastService.ShowSuccess(result.Message ?? "Conexión exitosa");
         }
-
-        await LoadDispensariosAsync();
-
-        isConnected = true;
-
-        await FileLogger.InfoAsync($"Conectado a {selectedName}");
-        ToastService.ShowSuccess(result.Message ?? "Conexión exitosa");
-    }
-    catch (Exception ex)
-    {
-        isConnected = false;
-        await FileLogger.ErrorAsync("ConnectAsync=>" + ex.Message);
-        ToastService.ShowError(ex.Message, "Error al establecer conexion");
-    }
-}
-
-
-private async Task LoadDispensariosAsync()
-{
-    isLoadingDispensarios = true;
-    errorDispensarios = null;
-
-    try
-    {
-        // selectedName ya es tu station seleccionada
-        var station = selectedName;
-
-        if (string.IsNullOrWhiteSpace(station))
+        catch (OperationCanceledException)
         {
-            errorDispensarios = "Seleccione una estación.";
-            dispensarios.Clear();
-            return;
+            await FileLogger.ErrorAsync("ConnectAsync => Timeout (30s)");
+            ToastService.ShowError("La conexión tardó más de 30 segundos y se canceló.", "Tiempo de espera");
         }
-
-        // Llama al API mandando station
-        var list = await CloseLoadApi.GetDispensariosAsync(station);
-
-        // Guarda en el campo (no en una variable local)
-        dispensarios = list.ToList();
+        catch (Exception ex)
+        {
+            isConnected = false;
+            await FileLogger.ErrorAsync("ConnectAsync => " + ex);
+            ToastService.ShowError(ex.Message, "Error al establecer conexion");
+        }
+        finally
+        {
+            isBusy = false;
+            StateHasChanged();
+        }
     }
-    catch (Exception ex)
+
+    private async Task LoadDispensariesAsync()
     {
-        errorDispensarios = ex.Message;
-        await FileLogger.ErrorAsync("LoadDispensariosAsync => " + ex);
-        ToastService.ShowError(ex.Message, "Error al obtener los dispensarios");
+        isLoadingDispensaries = true;
+        dispensariesError = null;
+
+        try
+        {
+            var station = selectedName;
+
+            if (string.IsNullOrWhiteSpace(station))
+            {
+                dispensariesError = "Seleccione una estación.";
+                dispensaries.Clear();
+                return;
+            }
+
+            var list = await CloseLoadApi.GetDispensariosAsync(station);
+            dispensaries = list.ToList();
+        }
+        catch (Exception ex)
+        {
+            dispensariesError = ex.Message;
+            await FileLogger.ErrorAsync("LoadDispensariesAsync => " + ex);
+            ToastService.ShowError(ex.Message, "Error al obtener los dispensarios");
+        }
+        finally
+        {
+            isLoadingDispensaries = false;
+            StateHasChanged();
+        }
     }
-    finally
+
+    private void Disconnect()
     {
-        isLoadingDispensarios = false;
-        StateHasChanged();
-    }
-}
+        _connectCts?.Cancel();
+        _connectCts?.Dispose();
+        _connectCts = null;
 
-
-
-    private void CancelConnection()
-    {
         isConnected = false;
-        status = "Desconectada 🔴";
+        isBusy = false;
 
-        dispensarios.Clear();
-        selectedDispensarioId = null;
-        errorDispensarios = null;
+        dispensaries.Clear();
+        selectedDispensaryId = null;
+        dispensariesError = null;
+
+        transactions.Clear();
+        binnacle.Clear();
+        tablesError = null;
 
         ConnState.SetSelectedName("");
+
+        // Si NO quieres borrar la selección, comenta la siguiente línea:
         selectedName = "";
-        isBusy=false;
+
+        StateHasChanged();
     }
 
-    private async Task OnDispensaryChanged(ChangeEventArgs e)
+    private async Task OnDispensaryChangedAsync(ChangeEventArgs e)
     {
         if (e?.Value is null || string.IsNullOrWhiteSpace(e.Value.ToString()))
         {
-            selectedDispensarioId = null;
+            selectedDispensaryId = null;
             transactions.Clear();
             binnacle.Clear();
             return;
         }
 
-        selectedDispensarioId = int.Parse(e.Value.ToString()!);
+        selectedDispensaryId = int.Parse(e.Value.ToString()!);
 
         isLoadingTables = true;
-        errorTables = null;
+        tablesError = null;
         transactions.Clear();
         binnacle.Clear();
         StateHasChanged();
 
         try
         {
-            var dispId = selectedDispensarioId.Value;
+            var dispId = selectedDispensaryId.Value;
 
-            await FileLogger.InfoAsync("Dispensario seleccionado =>" + dispId);
+            await FileLogger.InfoAsync("Dispensario seleccionado => " + dispId);
 
             var bTask = CloseLoadApi.GetBinnacleTopAsync(selectedName, dispId);
             var tTask = CloseLoadApi.GetTransactionsTopAsync(selectedName, dispId);
@@ -532,7 +536,7 @@ private async Task LoadDispensariosAsync()
         }
         catch (Exception ex)
         {
-            await FileLogger.ErrorAsync("OnDispensaryChanged=>" + ex.Message);
+            await FileLogger.ErrorAsync("OnDispensaryChangedAsync => " + ex);
             ToastService.ShowError("Error al obtener la bitacora y/o transacciones");
         }
         finally
@@ -542,55 +546,49 @@ private async Task LoadDispensariosAsync()
         }
     }
 
-
-    private async Task OpenBinnacleModal(BinnacleDto row)
+    private async Task OpenBinnacleModalAsync(BinnacleDto row)
     {
         selectedBinnacle = row;
-        errorModal = null;
+        modalError = null;
+
+        // Reset inputs each time you open
+        inputTotalizer = null;
+        inputGross = 0;
+        inputNet = 0;
+        inputTemperature = 0;
 
         showBinnacleModal = true;
         StateHasChanged();
 
         try
         {
-            selectedTransaction =  await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, row.id);
-
-
-            if (selectedTransaction is not null)
-            {
-                editTrxVolume = selectedTransaction.Volume;
-                editTrxAmount = selectedTransaction.Amount;
-                editTrxUnitPrice = selectedTransaction.UnitPrice;
-            }
-            else
-            {
-                errorModal = "No se encontró transacción para esta secuencia.";
-            }
+            var trx = await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, row.id);
+            if (trx is null)
+                modalError = "No se encontró transacción para esta secuencia.";
         }
         catch (Exception ex)
         {
-            errorModal = ex.ToString();
+            modalError = ex.ToString();
         }
 
         StateHasChanged();
     }
 
-
     private void CloseBinnacleModal()
     {
         showBinnacleModal = false;
         selectedBinnacle = null;
-        errorModal = null;
+        modalError = null;
     }
 
-    private async Task SaveModal()
+    private async Task SaveModalAsync()
     {
         isSavingModal = true;
 
-        if (inputTotalizador == 0 || inputGross <= 0 || inputNeto <= 0 || inputTemperatura == 0)
+        if (inputTotalizer == 0 || inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
         {
             ToastService.ShowError("Debe capturar Totalizador, Bruto, Neto y Temperatura.");
-            isSavingModal = false; 
+            isSavingModal = false;
             return;
         }
 
@@ -599,10 +597,10 @@ private async Task LoadDispensariosAsync()
             await CloseLoadApi.CloseManualAsync(
                 station: selectedName,
                 secuenciaBuscar: selectedBinnacle!.id,
-                totalizador: inputTotalizador ?? 0m,
+                totalizador: inputTotalizer ?? 0m,
                 volumenGross: inputGross,
-                volumenNetoCt: inputNeto,
-                temperatura: inputTemperatura);
+                volumenNetoCt: inputNet,
+                temperatura: inputTemperature);
 
             ToastService.ShowSuccess("La carga fue cerrada correctamente.");
         }
@@ -617,22 +615,9 @@ private async Task LoadDispensariosAsync()
         }
     }
 
-    private async Task ShowLogPath()
-{
-    var path = await FileLogger.GetLogFilePathAsync();
-    ToastService.ShowInfo(path, "Ruta real del log");
-}
-
-private async Task WriteTestLog()
-{
-    await FileLogger.InfoAsync("Prueba: el logger está funcionando ✅");
-    ToastService.ShowSuccess("Se escribió una línea al log");
-}
     private async Task ExportLog()
     {
         await FileLogger.ExportToDownloadsAsync();
         ToastService.ShowSuccess("Log copiado a Descargas");
     }
-
-}
 }
