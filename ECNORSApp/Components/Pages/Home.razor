@@ -555,7 +555,7 @@
             var trx = await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, row.id);
             if (trx is null)
                 await FileLogger.ErrorAsync("GetTransactionBySequenceAsync => " + row.id);
-                ToastService.ShowError("No se encontró transacción para esta secuencia.");
+                // ToastService.ShowError("No se encontró transacción para esta secuencia.");
         }
         catch (Exception ex)
         {
