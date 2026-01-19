@@ -22,7 +22,8 @@ public sealed class CloseLoadApi : ICloseLoadApi
     public async Task<DbInfoResp<string>?> GetDbInfoAsync(string station,CancellationToken ct = default)
     {
         var url = $"api/station/db-info?station={Uri.EscapeDataString(station)}";
-        return await _http.GetFromJsonAsync<DbInfoResp<string>>(url, ct);
+        var res = await _http.GetFromJsonAsync<DbInfoResp<string>>(url, ct);
+        return res;
     }
     public async Task<IReadOnlyList<DispensaryDto>> GetDispensariosAsync(string station, CancellationToken ct = default)
     {

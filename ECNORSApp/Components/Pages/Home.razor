@@ -219,9 +219,6 @@
                         </h5>
                         <button type="button" class="btn-close" @onclick="CloseBinnacleModal"></button>
                     </div>
-                    <div class="section-separator">
-                        <span>Bitácora</span>
-                    </div>
                     <div class="modal-body">
                         <div class="col-12 col-md-4 text-center mb-2">
                             <label class="form-label fw-bold text-primary"># Secuencia</label>
@@ -229,7 +226,9 @@
                                    value="@(selectedBinnacle?.id.ToString() ?? "")"
                                    readonly />
                         </div>
-
+                    <div class="section-separator">
+                        <span>Bitácora</span>
+                    </div>
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label fw-bold">Dispensario</label>
@@ -323,11 +322,6 @@
                             <label class="form-label fw-bold">Temperatura</label>
                             <input class="form-control input-blue" type="number" @bind="inputTemperature" />
                         </div>
-
-                        @if (!string.IsNullOrWhiteSpace(modalError))
-                        {
-                            <div class="text-danger fw-bold mt-2">@modalError</div>
-                        }
                     </div>
 
                     <div class="modal-footer modal-blue-footer">
@@ -378,7 +372,6 @@
     // Modal state
     private bool showBinnacleModal;
     private bool isSavingModal;
-    private string? modalError;
     private BinnacleDto? selectedBinnacle;
 
     private bool CanConnect => !string.IsNullOrWhiteSpace(selectedName);
@@ -549,9 +542,6 @@
     private async Task OpenBinnacleModalAsync(BinnacleDto row)
     {
         selectedBinnacle = row;
-        modalError = null;
-
-        // Reset inputs each time you open
         inputTotalizer = null;
         inputGross = 0;
         inputNet = 0;
@@ -564,11 +554,13 @@
         {
             var trx = await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, row.id);
             if (trx is null)
-                modalError = "No se encontró transacción para esta secuencia.";
+                await FileLogger.ErrorAsync("GetTransactionBySequenceAsync => " + row.id);
+                ToastService.ShowError("No se encontró transacción para esta secuencia.");
         }
         catch (Exception ex)
         {
-            modalError = ex.ToString();
+            await FileLogger.ErrorAsync(" GetTransactionBySequenceAsync" + "Error=>"+ ex);
+            ToastService.ShowError("No se encontró Volumen,VolumenVendido,precio  o programado.");
         }
 
         StateHasChanged();
@@ -578,14 +570,13 @@
     {
         showBinnacleModal = false;
         selectedBinnacle = null;
-        modalError = null;
     }
 
     private async Task SaveModalAsync()
     {
         isSavingModal = true;
 
-        if (inputTotalizer == 0 || inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
+        if (inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
         {
             ToastService.ShowError("Debe capturar Totalizador, Bruto, Neto y Temperatura.");
             isSavingModal = false;

@@ -41,11 +41,15 @@ namespace ECNORSApp
             builder.Services.AddSingleton<IFileLoggerService, FileLoggerService>();
 
             // HttpClient (typed client)
+            var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
+                ?? throw new InvalidOperationException("Api:BaseUrl no configurado en appsettings.json");
+
             builder.Services.AddHttpClient<CloseLoadApi>(client =>
             {
-                client.BaseAddress = new Uri("http://172.20.11.85:5090/");
+                client.BaseAddress = new Uri(apiBaseUrl);
                 client.Timeout = TimeSpan.FromSeconds(60);
             });
+
 
             // Interfaz -> implementación (una sola vez)
             builder.Services.AddScoped<ICloseLoadApi>(sp => sp.GetRequiredService<CloseLoadApi>());
