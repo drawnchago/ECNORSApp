@@ -405,7 +405,7 @@
 
         _connectCts?.Cancel();
         _connectCts?.Dispose();
-        _connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        _connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
         var ct = _connectCts.Token;
 
         try
@@ -429,8 +429,8 @@
         }
         catch (OperationCanceledException)
         {
-            await FileLogger.ErrorAsync("ConnectAsync => Timeout (30s)");
-            ToastService.ShowError("La conexión tardó más de 30 segundos y se canceló.", "Tiempo de espera");
+            await FileLogger.ErrorAsync("ConnectAsync => Timeout (10s)");
+            ToastService.ShowError("La conexión tardó más de 15 segundos,se canceló intente nuevamente.", "Tiempo de espera");
         }
         catch (Exception ex)
         {
