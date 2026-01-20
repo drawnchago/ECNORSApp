@@ -45,7 +45,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
+    <MauiIcon Include="Resources\AppIcon\iconorsan.png"/>
     <MauiSplashScreen Include="Resources\Splash\splash.svg" Color="#512BD4" BaseSize="128,128" />
     <MauiImage Include="Resources\Images\*" />
     <MauiImage Update="Resources\Images\dotnet_bot.svg" BaseSize="168,208" />
@@ -69,15 +69,7 @@
   <ItemGroup>
     <ProjectReference Include="..\ECNORSAppData\ECNORSAppData.csproj" />
   </ItemGroup>
-
-  <ItemGroup>
-    <MauiImage Include="wwwroot\images\logoecnorsa.jpeg" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="wwwroot\images\logoecnorsa.jpeg" />
-  </ItemGroup>
-
+  
   <ItemGroup>
     <Folder Include="Shared\" />
   </ItemGroup>
