@@ -15,7 +15,7 @@ public sealed class CloseLoadApi : ICloseLoadApi
         Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(string station,int dispensaryId,CancellationToken ct = default);
         Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station, int dispensaryId, CancellationToken ct = default);
         Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default);
-        Task CloseManualAsync(string station,int secuenciaBuscar,decimal totalizador,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
+        Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
     }
     public CloseLoadApi(HttpClient http) => _http = http;
 
@@ -52,14 +52,13 @@ public sealed class CloseLoadApi : ICloseLoadApi
         => _http.GetFromJsonAsync<TransactionDto>(
             $"api/transaction/by-sequence/{secuencia}?station={Uri.EscapeDataString(station)}", ct);
 
-    public async Task CloseManualAsync(string station, int secuenciaBuscar, decimal totalizador, decimal volumenGross, decimal volumenNetoCt, decimal temperatura, CancellationToken ct = default)
+    public async Task CloseManualAsync(string station, int secuenciaBuscar, decimal volumenGross, decimal volumenNetoCt, decimal temperatura, CancellationToken ct = default)
     {
         var url = $"api/binnacle/close-manual?station={Uri.EscapeDataString(station)}";
 
         var body = new
         {
             secuenciaBuscar,
-            totalizador,
             volumenGross,
             volumenNetoCt,
             temperatura

@@ -10,9 +10,9 @@
 
 <h4>Selecciona la estación</h4>
 
-<button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
+@* <button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
     Exportar log a Descargas
-</button>
+</button> *@
 
 <div class="d-flex align-items-center gap-2 mt-2">
     <select class="form-select" style="max-width:260px"
@@ -297,16 +297,6 @@
                         </div>
 
                         <div class="row g-2 mb-2">
-                            <div class="col-12">
-                                <label class="form-label fw-bold">Totalizador</label>
-                                <input class="form-control input-blue"
-                                       type="number"
-                                       step="0.001"
-                                       @bind="inputTotalizer" />
-                            </div>
-                        </div>
-
-                        <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label fw-bold">V. Bruto (GROSS)</label>
                                 <input class="form-control input-blue" type="number" @bind="inputGross" />
@@ -578,7 +568,7 @@
 
         if (inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
         {
-            ToastService.ShowError("Debe capturar Totalizador, Bruto, Neto y Temperatura.");
+            ToastService.ShowError("Debe capturar  Bruto, Neto y Temperatura.");
             isSavingModal = false;
             return;
         }
@@ -588,7 +578,6 @@
             await CloseLoadApi.CloseManualAsync(
                 station: selectedName,
                 secuenciaBuscar: selectedBinnacle!.id,
-                totalizador: inputTotalizer ?? 0m,
                 volumenGross: inputGross,
                 volumenNetoCt: inputNet,
                 temperatura: inputTemperature);
