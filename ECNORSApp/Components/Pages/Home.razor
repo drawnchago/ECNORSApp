@@ -12,7 +12,7 @@
 
 @* <button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
     Exportar log a Descargas
-</button> *@
+</button>  *@
 
 <div class="d-flex align-items-center gap-2 mt-2">
     <select class="form-select" style="max-width:260px"
@@ -220,7 +220,7 @@
                         <button type="button" class="btn-close" @onclick="CloseBinnacleModal"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="col-12 col-md-4 text-center mb-2">
+                        <div class="col-12 col-md-12 text-center mb-2">
                             <label class="form-label fw-bold text-primary"># Secuencia</label>
                             <input class="form-control text-center fw-bold fs-4 input-blue-readonly"
                                    value="@(selectedBinnacle?.id.ToString() ?? "")"
@@ -245,7 +245,7 @@
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-4 mb-3">
+                        <div class="col-12 col-md-12 mb-3">
                             <label class="form-label fw-bold">Producto</label>
                             <input class="form-control fw-bold text-white text-center @(selectedBinnacle?.ProductId switch
                                {
@@ -295,7 +295,21 @@
                         <div class="section-separator">
                             <span>Corrección</span>
                         </div>
-
+                        <div class="d-flex justify-content-end mt-2">
+                            <button class="btn btn-outline-primary btn-sm"
+                                    @onclick="GetNetVolAutoAsync"
+                                    disabled="@isCalculatingNet">
+                                @if (isCalculatingNet)
+                                {
+                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                    <span>Calculando...</span>
+                                }
+                                else
+                                {
+                                    <span>Calcular Volumen</span>
+                                }
+                            </button>
+                        </div>
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label fw-bold">V. Bruto (GROSS)</label>
@@ -303,18 +317,19 @@
                             </div>
 
                             <div class="col-6">
+                                <label class="form-label fw-bold">Temperatura</label>
+                                <input class="form-control input-blue" type="number" @bind="inputTemperature" />
+                            </div>
+
+                            <div class="col-12 mb-2">
                                 <label class="form-label fw-bold">V. Neto</label>
                                 <input class="form-control input-blue" type="number" @bind="inputNet" />
                             </div>
                         </div>
-
-                        <div class="col-12 mb-2">
-                            <label class="form-label fw-bold">Temperatura</label>
-                            <input class="form-control input-blue" type="number" @bind="inputTemperature" />
-                        </div>
                     </div>
 
                     <div class="modal-footer modal-blue-footer">
+
                         <button class="btn btn-outline-primary" @onclick="CloseBinnacleModal">
                             Cerrar
                         </button>
@@ -333,7 +348,8 @@
 @code {
     private CancellationTokenSource? _connectCts;
 
-    // Modal inputs
+    private bool isCalculatingNet;
+
     private decimal? inputTotalizer;
     private decimal inputGross;
     private decimal inputNet;
@@ -545,7 +561,7 @@
             var trx = await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, row.id);
             if (trx is null)
                 await FileLogger.ErrorAsync("GetTransactionBySequenceAsync => " + row.id);
-                // ToastService.ShowError("No se encontró transacción para esta secuencia.");
+            // ToastService.ShowError("No se encontró transacción para esta secuencia.");
         }
         catch (Exception ex)
         {
@@ -591,6 +607,50 @@
         finally
         {
             isSavingModal = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task GetNetVolAutoAsync()
+    {
+
+        if (inputGross <= 0 || inputTemperature <= 0)
+        {
+            ToastService.ShowError("Capture un Volumen Bruto (GROSS) o temperatura válida (> 0).");
+            return;
+        }
+
+        var disp = selectedBinnacle.DispensaryId ?? 0;
+        var prod = selectedBinnacle.ProductId ?? 0;
+
+
+        if (isCalculatingNet) return;
+
+        try
+        {
+            isCalculatingNet = true;
+            StateHasChanged();
+
+            var volNetoAuto = await CloseLoadApi.GetNetVolAutoAsync(
+                station: selectedName,
+                intDispensario: disp,
+                intProducto: prod,
+                temperatura: inputTemperature,
+                volumenGross: inputGross);
+
+            inputNet = volNetoAuto;
+
+            ToastService.ShowSuccess("Se obtuvo el volumen neto automaticamente");
+
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError(ex.Message, "No se pudo calcular el volumen neto,coloquelo manual");
+            await FileLogger.ErrorAsync("GetNetVolAutoAsync => " + ex);
+        }
+        finally
+        {
+            isCalculatingNet = false;
             StateHasChanged();
         }
     }

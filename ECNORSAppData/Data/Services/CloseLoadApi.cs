@@ -1,4 +1,5 @@
 ﻿using ECNORSAppData.Data.DTO;
+using Microsoft.Data.SqlClient;
 using System.Net.Http.Json;
 using static ECNORSApp.Services.CloseLoadApi;
 
@@ -16,6 +17,7 @@ public sealed class CloseLoadApi : ICloseLoadApi
         Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station, int dispensaryId, CancellationToken ct = default);
         Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default);
         Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
+        Task<decimal> GetNetVolAutoAsync(string station,int intDispensario,int intProducto,decimal temperatura,decimal volumenGross,CancellationToken ct = default);
     }
     public CloseLoadApi(HttpClient http) => _http = http;
 
@@ -67,6 +69,15 @@ public sealed class CloseLoadApi : ICloseLoadApi
         var resp = await _http.PostAsJsonAsync(url, body, ct);
         resp.EnsureSuccessStatusCode();
     }
+    public async Task<decimal> GetNetVolAutoAsync(string station,int intDispensario,int intProducto,decimal temperatura,decimal volumenGross,CancellationToken ct = default)
+        => (await (await _http.PostAsJsonAsync(
+                "api/binnacle/GetNetVolAuto",
+                new { station, intDispensario, intProducto, temperatura, volumenGross },
+                ct))
+            .Content
+            .ReadFromJsonAsync<DbInfoResp<decimal?>>(cancellationToken: ct))
+           ?.Data ?? 0m;
+
 
     public sealed class DbInfoResp<T>
     {

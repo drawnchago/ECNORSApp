@@ -15,6 +15,7 @@ namespace ECNORSAppData.Services
         Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(int dispensaryId, CancellationToken ct = default); 
         Task<TransactionDto?> GetTransactionBySequenceAsync(long secuencia, CancellationToken ct = default);
         Task CloseManualAsync(int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
+        Task getNetVolAuto(int secuenciaBuscar, decimal volumenGross, decimal temperatura, CancellationToken ct = default);
     }
 
     public sealed class CloseLoadService : ICloseLoadService
@@ -49,7 +50,6 @@ namespace ECNORSAppData.Services
         {
             await using var db = CreateDb();
 
-            // fuerza abrir para validar conexión real
             await db.Database.OpenConnectionAsync(ct);
 
             var conn = db.Database.GetDbConnection();
@@ -166,8 +166,21 @@ namespace ECNORSAppData.Services
                 new object[] { p1, p2, p3, p4},
                 ct);
         }
+        public async Task getNetVolAuto(int secuenciaBuscar, decimal volumenGross, decimal temperatura, CancellationToken ct = default)
+        {
+            await using var db = CreateDb();
 
+            var p1 = new SqlParameter("@SecuenciaBuscar", secuenciaBuscar);
+            var p2 = new SqlParameter("@VolumenGROSS", volumenGross);
+            var p3 = new SqlParameter("@Temperatura", temperatura);
 
-    }
+            db.Database.SetCommandTimeout(120); // por si tarda
 
+            await db.Database.ExecuteSqlRawAsync(
+                "EXEC dbo.sp_Binnacle_CloseManual @SecuenciaBuscar, @VolumenGROSS, @Temperatura",
+                new object[] { p1, p2, p3 },
+                ct);
+        }
+
+}
 }
