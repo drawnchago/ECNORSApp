@@ -41,14 +41,41 @@ public sealed class CloseLoadApi : ICloseLoadApi
     }
     public async Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(string station,int dispensaryId,CancellationToken ct = default)
     {
-        var response = await _http.GetFromJsonAsync<DbInfoResp<List<BinnacleDto>>>($"api/binnacle/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}", ct);
-        var list = response?.Data;
-        return list is not null? list: Array.Empty<BinnacleDto>();
+        var url = $"api/binnacle/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}";
+
+        using var resp = await _http.GetAsync(url, ct);
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotFound || resp.StatusCode == System.Net.HttpStatusCode.NoContent)
+            return Array.Empty<BinnacleDto>();
+
+        resp.EnsureSuccessStatusCode();
+
+        var payload = await resp.Content.ReadFromJsonAsync<DbInfoResp<List<BinnacleDto>>>(cancellationToken: ct);
+
+        if (payload is null || !payload.Success || payload.Data is null)
+            return Array.Empty<BinnacleDto>();
+
+        return payload.Data;
     }
-    public async Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station, int dispensaryId, CancellationToken ct = default)
-        => await _http.GetFromJsonAsync<IReadOnlyList<TransactionDto>>(
-               $"api/transaction/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}", ct)
-           ?? Array.Empty<TransactionDto>();
+
+    public async Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station,int dispensaryId,CancellationToken ct = default)
+    {
+        var url = $"api/transaction/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}";
+
+        using var resp = await _http.GetAsync(url, ct);
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return Array.Empty<TransactionDto>();
+
+        resp.EnsureSuccessStatusCode();
+
+        var payload = await resp.Content.ReadFromJsonAsync<DbInfoResp<List<TransactionDto>>>(cancellationToken: ct);
+
+        if (payload is null || !payload.Success || payload.Data is null)
+            return Array.Empty<TransactionDto>();
+
+        return payload.Data;
+    }
 
     public Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default)
         => _http.GetFromJsonAsync<TransactionDto>(

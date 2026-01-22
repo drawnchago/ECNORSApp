@@ -10,9 +10,9 @@
 
 <h4>Selecciona la estación</h4>
 
-@* <button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
+<button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
     Exportar log a Descargas
-</button>  *@
+</button> 
 
 <div class="d-flex align-items-center gap-2 mt-2">
     <select class="form-select" style="max-width:260px"
@@ -404,12 +404,14 @@
 
         _connectCts?.Cancel();
         _connectCts?.Dispose();
-        _connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        _connectCts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var ct = _connectCts.Token;
 
         try
         {
             ConnState.SetSelectedName(selectedName);
+
+            Console.WriteLine(selectedName);
 
             var result = await CloseLoadApi.GetDbInfoAsync(selectedName, ct);
 
@@ -532,6 +534,11 @@
 
             binnacle = (await bTask).ToList();
             transactions = (await tTask).ToList();
+
+            if (!binnacle.Any() && !transactions.Any())
+            {
+                ToastService.ShowInfo("No se encontraron registros.");
+            }
         }
         catch (Exception ex)
         {
