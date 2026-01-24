@@ -207,6 +207,7 @@
 
     @if (showBinnacleModal && selectedBinnacle is not null)
     {
+
         <div class="modal-backdrop blue-backdrop" @onclick="CloseBinnacleModal"></div>
 
         <div class="modal d-block" tabindex="-1">
@@ -496,8 +497,6 @@
         tablesError = null;
 
         ConnState.SetSelectedName("");
-
-        // Si NO quieres borrar la selección, comenta la siguiente línea:
         selectedName = "";
 
         StateHasChanged();
@@ -598,6 +597,14 @@
 
         try
         {
+            Console.WriteLine(selectedName);
+            Console.WriteLine(selectedBinnacle!.id);
+            Console.WriteLine(inputGross);
+            Console.WriteLine(inputNet);
+            Console.WriteLine(inputTemperature);
+            
+            await FileLogger.ErrorAsync(" selectedName" + selectedName + " selectedBinnacle!.id" + selectedBinnacle!.id+ " inputGross" + inputGross + " inputNet" + inputTemperature);
+
             await CloseLoadApi.CloseManualAsync(
                 station: selectedName,
                 secuenciaBuscar: selectedBinnacle!.id,

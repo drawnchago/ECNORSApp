@@ -81,12 +81,13 @@ public sealed class CloseLoadApi : ICloseLoadApi
         => _http.GetFromJsonAsync<TransactionDto>(
             $"api/transaction/by-sequence/{secuencia}?station={Uri.EscapeDataString(station)}", ct);
 
-    public async Task CloseManualAsync(string station, int secuenciaBuscar, decimal volumenGross, decimal volumenNetoCt, decimal temperatura, CancellationToken ct = default)
+    public async Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default)
     {
-        var url = $"api/binnacle/close-manual?station={Uri.EscapeDataString(station)}";
+        var url = "api/binnacle/close-manual";
 
         var body = new
         {
+            station,
             secuenciaBuscar,
             volumenGross,
             volumenNetoCt,
@@ -96,6 +97,7 @@ public sealed class CloseLoadApi : ICloseLoadApi
         var resp = await _http.PostAsJsonAsync(url, body, ct);
         resp.EnsureSuccessStatusCode();
     }
+
     public async Task<decimal> GetNetVolAutoAsync(string station,int intDispensario,int intProducto,decimal temperatura,decimal volumenGross,CancellationToken ct = default)
         => (await (await _http.PostAsJsonAsync(
                 "api/binnacle/GetNetVolAuto",
