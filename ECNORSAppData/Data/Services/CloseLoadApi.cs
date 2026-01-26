@@ -18,6 +18,8 @@ public sealed class CloseLoadApi : ICloseLoadApi
         Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default);
         Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
         Task<decimal> GetNetVolAutoAsync(string station,int intDispensario,int intProducto,decimal temperatura,decimal volumenGross,CancellationToken ct = default);
+        Task<TransactionResp<bool>> UpdateTransactionBySequenceAsync(TransactionUpdateDto dto,CancellationToken ct = default);
+
     }
     public CloseLoadApi(HttpClient http) => _http = http;
 
@@ -107,7 +109,19 @@ public sealed class CloseLoadApi : ICloseLoadApi
             .ReadFromJsonAsync<DbInfoResp<decimal?>>(cancellationToken: ct))
            ?.Data ?? 0m;
 
+    public async Task<TransactionResp<bool>> UpdateTransactionBySequenceAsync(TransactionUpdateDto dto,CancellationToken ct = default)
+    {
+        var response = await _http.PostAsJsonAsync("api/Transaction/UpdateTransactionBySequence", dto,ct);
 
+        if (!response.IsSuccessStatusCode)
+        {
+            var raw = await response.Content.ReadAsStringAsync(ct);
+            return TransactionResp<bool>.Fail($"Error HTTP {(int)response.StatusCode}: {raw}");
+        }
+
+        var result = await response.Content.ReadFromJsonAsync<TransactionResp<bool>>(cancellationToken: ct);
+        return result ?? TransactionResp<bool>.Fail("Respuesta vacía del servidor.");
+    }
     public sealed class DbInfoResp<T>
     {
         public bool Success { get; set; }

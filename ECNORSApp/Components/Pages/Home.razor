@@ -2,6 +2,7 @@
 @using ECNORSAppData.Data.Config
 @using ECNORSAppData.Data.DTO
 @using ECNORSApp.Services
+@using System.Globalization
 @inject CloseLoadApi CloseLoadApi
 @inject IConnectionSelector ConnectionSelector
 @inject SelectedConnectionState ConnState
@@ -14,23 +15,17 @@
 <button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
     Exportar log a Descargas
 </button> 
-
 <div class="d-flex align-items-center gap-2 mt-2">
-    <select class="form-select" style="max-width:260px"
-            @bind="selectedName"
-            disabled="@(isBusy || isConnected)">
+    <select class="form-select" style="max-width:260px" @bind="selectedName" disabled="@(isBusy || isConnected)">
         <option value="">-- Selecciona --</option>
         @foreach (var c in connections)
         {
             <option value="@c.name">@c.name</option>
         }
     </select>
-
     @if (!isConnected)
     {
-        <button class="btn btn-primary"
-                @onclick="ConnectAsync"
-                disabled="@(!CanConnect || isBusy)">
+        <button class="btn btn-primary" @onclick="ConnectAsync" disabled="@(!CanConnect || isBusy)">
             @if (isBusy)
             {
                 <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
@@ -51,31 +46,29 @@
     }
 </div>
 
-@if (isConnected)
-{
-    <hr class="my-3" />
+    @if (isConnected)
+    {
+        <hr class="my-3" />
 
-    <h5>Dispensarios</h5>
+        <h5>Dispensarios</h5>
 
-    @if (isLoadingDispensaries)
-    {
-        <div>Cargando dispensarios...</div>
-    }
-    else if (!string.IsNullOrWhiteSpace(dispensariesError))
-    {
-        <div class="text-danger">@dispensariesError</div>
-    }
-    else
-    {
-        <select class="form-select"
-                value="@selectedDispensaryId"
-                @onchange="OnDispensaryChangedAsync">
-            <option value="">-- Selecciona dispensario --</option>
-            @foreach (var d in dispensaries)
-            {
-                <option value="@d.DispensaryId">@d.DisplayName</option>
-            }
-        </select>
+        @if (isLoadingDispensaries)
+        {
+            <div>Cargando dispensarios...</div>
+        }
+        else if (!string.IsNullOrWhiteSpace(dispensariesError))
+        {
+            <div class="text-danger">@dispensariesError</div>
+        }
+        else
+        {
+            <select class="form-select" value="@selectedDispensaryId" @onchange="OnDispensaryChangedAsync">
+                <option value="">-- Selecciona dispensario --</option>
+                @foreach (var d in dispensaries)
+                {
+                    <option value="@d.DispensaryId">@d.DisplayName</option>
+                }
+            </select>
     }
 
     @if (selectedDispensaryId.HasValue)
@@ -190,7 +183,7 @@
                             {
                                 @foreach (var r in transactions)
                                 {
-                                    <tr>
+                                    <tr style="cursor:pointer" title="Click para detalle" @onclick="() => OpenTransactionModal(r)">
                                         <td>@r.id</td>
                                         <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
                                         <td class="num">@Format2(r.Volume)</td>
@@ -206,27 +199,20 @@
         }
     }
 
-    @if (showBinnacleModal && selectedBinnacle is not null)
+    @if (showBinnacleModal)
     {
-
-        <div class="modal-backdrop blue-backdrop" @onclick="CloseBinnacleModal"></div>
-
+        <div class="modal-backdrop blue-backdrop" onclick="() => CloseModalAsync(true)"></div>
         <div class="modal d-block" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
                 <div class="modal-content modal-blue">
-
                     <div class="modal-header modal-blue-header">
-                        <h5 class="modal-title">
-                            Detalle (Secuencia @selectedBinnacle.id)
-                        </h5>
-                        <button type="button" class="btn-close" @onclick="CloseBinnacleModal"></button>
+                        <h5 class="modal-title">Detalle (Secuencia @selectedBinnacle.id) </h5>
+                        <button type="button" class="btn-close" onclick="() => CloseModalAsync(true)"></button>
                     </div>
                     <div class="modal-body">
                         <div class="col-12 col-md-12 text-center mb-2">
                             <label class="form-label fw-bold text-primary"># Secuencia</label>
-                            <input class="form-control text-center fw-bold fs-4 input-blue-readonly"
-                                   value="@(selectedBinnacle?.id.ToString() ?? "")"
-                                   readonly />
+                            <input class="form-control text-center fw-bold fs-4 input-blue-readonly" value="@(selectedBinnacle?.id.ToString() ?? "")" readonly />
                         </div>
                     <div class="section-separator">
                         <span>Bitácora</span>
@@ -234,16 +220,11 @@
                         <div class="row g-2 mb-2">
                             <div class="col-6">
                                 <label class="form-label fw-bold">Dispensario</label>
-                                <input class="form-control input-blue-readonly fw-bold"
-                                       value="@selectedBinnacle?.DispensaryId"
-                                       readonly disabled/>
+                                <input class="form-control input-blue-readonly fw-bold" value="@selectedBinnacle?.DispensaryId" readonly disabled/>
                             </div>
-
                             <div class="col-6">
                                 <label class="form-label fw-bold">Manguera</label>
-                                <input class="form-control input-blue-readonly"
-                                       value="@selectedBinnacle?.HoseId"
-                                       readonly disabled/>
+                                <input class="form-control input-blue-readonly" value="@selectedBinnacle?.HoseId" readonly disabled/>
                             </div>
                         </div>
 
@@ -266,32 +247,22 @@
                     <div class="row g-2 mb-2">
                         <div class="col-6">
                             <label class="form-label fw-bold">Programado</label>
-                            <input class="form-control input-blue-readonly"
-                                   value="@Format2(selectedBinnacle?.Scheduled)"
-                                   readonly disabled />
+                            <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.Scheduled)"readonly disabled />
                         </div>
-
                         <div class="col-6">
                             <label class="form-label fw-bold">Vendido</label>
-                            <input class="form-control input-blue-readonly"
-                                   value="@Format2(selectedBinnacle?.Sold)"
-                                   readonly disabled />
+                            <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.Sold)"readonly disabled />
                         </div>
                     </div>
 
                     <div class="row g-2 mb-2">
                         <div class="col-6">
                             <label class="form-label fw-bold">Volumen vendido</label>
-                            <input class="form-control input-blue-readonly"
-                                   value="@Format2(selectedBinnacle?.SoldVolume)"
-                                   readonly disabled />
+                            <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.SoldVolume)"readonly disabled />
                         </div>
-
                         <div class="col-6">
                             <label class="form-label fw-bold">Precio unitario</label>
-                            <input class="form-control input-blue-readonly"
-                                   value="@Format2(selectedBinnacle?.UnitPrice)"
-                                   readonly disabled />
+                            <input class="form-control input-blue-readonly" value="@Format2(selectedBinnacle?.UnitPrice)" readonly disabled />
                         </div>
                     </div>
                         <div class="section-separator">
@@ -314,39 +285,69 @@
                         </div>
                         <div class="row g-2 mb-2">
                             <div class="col-6">
-                                <label class="form-label fw-bold">V. Bruto (GROSS)</label>
+                                <label class="form-label fw-bold">Volumen(Bruto/GROSS)</label>
                                 <input class="form-control input-blue" type="number" @bind="inputGross" />
                             </div>
-
                             <div class="col-6">
-                                <label class="form-label fw-bold">Temperatura</label>
+                                <label class="form-label fw-bold">Precio(Temperatura)</label>
                                 <input class="form-control input-blue" type="number" @bind="inputTemperature" />
                             </div>
-
                             <div class="col-12 mb-2">
-                                <label class="form-label fw-bold">V. Neto</label>
+                                <label class="form-label fw-bold">Monto(V.Neto)</label>
                                 <input class="form-control input-blue" type="number" @bind="inputNet" />
                             </div>
                         </div>
                     </div>
-
                     <div class="modal-footer modal-blue-footer">
-
-                        <button class="btn btn-outline-primary" @onclick="CloseBinnacleModal">
-                            Cerrar
-                        </button>
-                        @if(isCloseManual){
-                            <button class="btn btn-success" @onclick="SaveModalAsync" disabled="@isSavingModal">
-                                @(isSavingModal ? "Guardando..." : "Guardar")
-                            </button>
-                        }
-                        @if(isUpdateLoad){
-                            <button class="btn btn-success" >
-                                @(isSavingModal ? "Guardando..." : "Actualizar")
-                            </button>
-                        }
+                        <button class="btn btn-outline-primary" @onclick="() => CloseModalAsync(true)">
+                    Cerrar
+                </button>
+                        <button class="btn btn-success" @onclick="SaveModalAsync" disabled="@isSavingModal"> @(isSavingModal ? "Guardando..." : "Guardar") </button>
                     </div>
 
+                </div>
+            </div>
+        </div>
+    }
+    @if (showTransactionModal)
+    {
+        <div class="modal-backdrop blue-backdrop" onclick="() => CloseModalAsync(false)"></div>
+        <div class="modal d-block" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
+                <div class="modal-content modal-blue">
+                    <div class="modal-header modal-blue-header">
+                        <h5 class="modal-title">
+                            Detalle Transaccion (#@Transaction.id)
+                        </h5>
+                        <button type="button" class="btn-close" onclick="() => CloseModalAsync(false)"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="col-12 col-md-12 text-center mb-2">
+                            <label class="form-label fw-bold text-primary"># Secuencia</label>
+                            <input class="form-control text-center fw-bold fs-4 input-blue-readonly" value="@(Transaction?.id.ToString() ?? "")" readonly />
+                        </div>
+                        <div class="section-separator">
+                            <span>Correciones</span>
+                        </div>
+                        <div class="row g-2 mb-2">
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Volumen(Bruto/GROSS)</label>
+                                <input class="form-control input-blue" type="number" @bind="inputGross" />
+                            </div>
+                            <div class="col-6">
+                                <label class="form-label fw-bold">Precio(Temperatura)</label>
+                                <input class="form-control input-blue" type="number" @bind="inputTemperature" />
+                            </div>
+                            <div class="col-12 mb-2">
+                                <label class="form-label fw-bold">Monto(V.Neto)</label>
+                                <input class="form-control input-blue" type="number" @bind="inputNet" />
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer modal-blue-footer">
+                        <button class="btn btn-outline-primary" @onclick="() => CloseModalAsync(false)">Cerrar  </button>
+                        <button class="btn btn-success" @onclick="SaveModalAsync" disabled="@isSavingModal"> @(isSavingModal ? "Guardando..." : "Guardar") </button>
+                    </div>
                 </div>
             </div>
         </div>
@@ -354,15 +355,10 @@
 }
 
 @code {
-    private string mode = "close";   // valor inicial
-    private bool isCloseManual => mode == "close";
-    private bool isUpdateLoad  => mode == "update";
-
     private CancellationTokenSource? _connectCts;
 
     private bool isCalculatingNet;
 
-    private decimal? inputTotalizer;
     private decimal inputGross;
     private decimal inputNet;
     private decimal inputTemperature;
@@ -387,10 +383,15 @@
 
     private static string Format2(double? v) => v.HasValue ? v.Value.ToString("N2") : "-";
 
-    // Modal state
-    private bool showBinnacleModal;
+    private bool isCloseManual;
+    private bool isUpdateTrans;
     private bool isSavingModal;
+
+    private bool showBinnacleModal;
     private BinnacleDto? selectedBinnacle;
+
+    private bool showTransactionModal;
+    private TransactionDto? Transaction;
 
     private bool CanConnect => !string.IsNullOrWhiteSpace(selectedName);
 
@@ -524,48 +525,26 @@
         }
 
         selectedDispensaryId = int.Parse(e.Value.ToString()!);
+        await LoadAsync();
+    }
 
-        isLoadingTables = true;
-        tablesError = null;
-        transactions.Clear();
-        binnacle.Clear();
-        StateHasChanged();
-
-        try
-        {
-            var dispId = selectedDispensaryId.Value;
-
-            await FileLogger.InfoAsync("Dispensario seleccionado => " + dispId);
-
-            var bTask = CloseLoadApi.GetBinnacleTopAsync(selectedName, dispId);
-            var tTask = CloseLoadApi.GetTransactionsTopAsync(selectedName, dispId);
-
-            await Task.WhenAll(bTask, tTask);
-
-            binnacle = (await bTask).ToList();
-            transactions = (await tTask).ToList();
-
-            if (!binnacle.Any() && !transactions.Any())
-            {
-                ToastService.ShowInfo("No se encontraron registros.");
-            }
-        }
-        catch (Exception ex)
-        {
-            await FileLogger.ErrorAsync("OnDispensaryChangedAsync => " + ex);
-            ToastService.ShowError("Error al obtener la bitacora y/o transacciones");
-        }
-        finally
-        {
-            isLoadingTables = false;
-            StateHasChanged();
-        }
+    private async Task OpenTransactionModal(TransactionDto row)
+    {
+        isCloseManual = false;
+        isUpdateTrans = true;
+        showTransactionModal = true;
+        Transaction = row;
+        inputGross = (decimal)(Transaction.Volume ?? 0d);
+        inputNet = (decimal)(Transaction.Amount ?? 0d);
+        inputTemperature = (decimal)(Transaction.UnitPrice ?? 0d);
+        StateHasChanged(); 
     }
 
     private async Task OpenBinnacleModalAsync(BinnacleDto row)
     {
+        isCloseManual = true;
+        isUpdateTrans = false;
         selectedBinnacle = row;
-        inputTotalizer = null;
         inputGross = 0;
         inputNet = 0;
         inputTemperature = 0;
@@ -589,45 +568,80 @@
         StateHasChanged();
     }
 
-    private void CloseBinnacleModal()
+    private async Task CloseModalAsync(bool isBinnacle)
     {
-        showBinnacleModal = false;
-        selectedBinnacle = null;
+        if (isBinnacle)
+        {
+            showBinnacleModal = false;
+            selectedBinnacle = null;
+        }
+        else
+        {
+            showTransactionModal = false;
+            Transaction = null;
+        }
+
+        await LoadAsync();
     }
 
     private async Task SaveModalAsync()
     {
         isSavingModal = true;
 
-        if (inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
-        {
-            ToastService.ShowError("Debe capturar  Bruto, Neto y Temperatura.");
-            isSavingModal = false;
-            return;
-        }
-
+        await FileLogger.ErrorAsync("SaveModalAsync | Start | " + inputGross + "inputNet=>" + inputNet + "inputTemperature=>" + inputTemperature);
         try
         {
-            Console.WriteLine(selectedName);
-            Console.WriteLine(selectedBinnacle!.id);
-            Console.WriteLine(inputGross);
-            Console.WriteLine(inputNet);
-            Console.WriteLine(inputTemperature);
-            
-            await FileLogger.ErrorAsync(" selectedName" + selectedName + " selectedBinnacle!.id" + selectedBinnacle!.id+ " inputGross" + inputGross + " inputNet" + inputTemperature);
+            if (inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
+            {
+                await FileLogger.ErrorAsync("SaveModalAsync | BadRequest | " + inputGross + "inputNet=>" + inputNet + "inputTemperature=>" + inputTemperature);
+                ToastService.ShowError("Debe capturar Bruto, Neto y Temperatura.");
+                return;
+            }
 
-            await CloseLoadApi.CloseManualAsync(
-                station: selectedName,
-                secuenciaBuscar: selectedBinnacle!.id,
-                volumenGross: inputGross,
-                volumenNetoCt: inputNet,
-                temperatura: inputTemperature);
+            if (isUpdateTrans)
+            {
+                await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | BadRequest | Station=> " + selectedName + "Sequence=> " + Transaction.id + "UnitPrice=> " + (double)inputTemperature + "Volume=> " + (double)inputGross + "Amount=> " + (double)inputNet);
+                var dto = new TransactionUpdateDto
+                {
+                    Station = selectedName,
+                    Sequence = Transaction!.id,
+                    UnitPrice = (double)inputTemperature,
+                    Volume = (double)inputGross,
+                    Amount = (double)inputNet
+                };
 
-            ToastService.ShowSuccess("La carga fue cerrada correctamente.");
+                var resp = await CloseLoadApi.UpdateTransactionBySequenceAsync(dto);
+
+                if (!resp.Success)
+                {
+                    await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | End(Err)");
+                    ToastService.ShowError(resp.Message ?? "No se pudo actualizar la transacción.");
+                    return;
+                }
+
+                await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | End(Ok)");
+                ToastService.ShowSuccess(resp.Message ?? "Transacción actualizada.");
+                return;
+            }
+
+            if (isCloseManual)
+            {
+                await FileLogger.ErrorAsync($"SaveModalAsync | isCloseManual | End(Ok) | station={selectedName} seq={selectedBinnacle!.id} gross={inputGross} net={inputNet} temp={inputTemperature}");
+
+                await CloseLoadApi.CloseManualAsync(
+                    station: selectedName,
+                    secuenciaBuscar: selectedBinnacle!.id,
+                    volumenGross: inputGross,
+                    volumenNetoCt: inputNet,
+                    temperatura: inputTemperature);
+
+                ToastService.ShowSuccess("La carga fue cerrada correctamente.");
+            }
         }
         catch (Exception ex)
         {
-            ToastService.ShowError(ex.Message, "No se pudo cerrar la carga");
+            await FileLogger.ErrorAsync("SaveModalAsync | isCloseManual | End(Err) ");
+            ToastService.ShowError(ex.Message, "Error");
         }
         finally
         {
@@ -635,6 +649,7 @@
             StateHasChanged();
         }
     }
+
 
     private async Task GetNetVolAutoAsync()
     {
@@ -685,4 +700,44 @@
         await FileLogger.ExportToDownloadsAsync();
         ToastService.ShowSuccess("Log copiado a Descargas");
     }
+
+    private async Task LoadAsync()
+    {
+        if (!selectedDispensaryId.HasValue) return;
+
+        isLoadingTables = true;
+        tablesError = null;
+        transactions.Clear();
+        binnacle.Clear();
+        StateHasChanged();
+
+        try
+        {
+            var dispId = selectedDispensaryId.Value;
+
+            await FileLogger.InfoAsync("Refrescando tablas => " + dispId);
+
+            var bTask = CloseLoadApi.GetBinnacleTopAsync(selectedName, dispId);
+            var tTask = CloseLoadApi.GetTransactionsTopAsync(selectedName, dispId);
+
+            await Task.WhenAll(bTask, tTask);
+
+            binnacle = (await bTask).ToList();
+            transactions = (await tTask).ToList();
+
+            if (!binnacle.Any() && !transactions.Any())
+                ToastService.ShowInfo("No se encontraron registros.");
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync("ReloadTablesAsync => " + ex);
+            ToastService.ShowError("Error al refrescar la bitácora y/o transacciones");
+        }
+        finally
+        {
+            isLoadingTables = false;
+            StateHasChanged();
+        }
+    }
+
 }
