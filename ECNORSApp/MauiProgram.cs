@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
 using static ECNORSApp.Services.CloseLoadApi;
+using MudBlazor.Services;
 
 namespace ECNORSApp
 {
@@ -27,6 +28,7 @@ namespace ECNORSApp
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();
 #endif
+            builder.Services.AddMudServices();
 
             using (var stream = FileSystem.OpenAppPackageFileAsync("appsettings.json")
                                           .GetAwaiter().GetResult())
