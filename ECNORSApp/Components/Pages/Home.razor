@@ -95,7 +95,7 @@
                     <table class="nice-table">
                         <thead>
                             <tr>
-                                <th>ID</th>
+                                <th>Secuencia</th>
                                 <th class="num">Totalizador</th>
                                 <th class="num">Tot.Original</th>
                                 <th class="num">Tot.Or.Final</th>
@@ -164,11 +164,12 @@
                     <table class="nice-table table-comfy">
                         <thead>
                             <tr>
-                                <th>ID</th>
-                                <th>Fecha</th>
+                                <th>Transaccion</th>
+                                <th>Secuencia</th>
                                 <th class="num">Volumen</th>
                                 <th class="num">Importe</th>
                                 <th class="num">Precio</th>
+                                <th>Fecha</th>
                             </tr>
                         </thead>
 
@@ -184,11 +185,12 @@
                                 @foreach (var r in transactions)
                                 {
                                     <tr style="cursor:pointer" title="Click para detalle" @onclick="() => OpenTransactionModal(r)">
+                                        <td>@r.TransactionId</td>
                                         <td>@r.id</td>
-                                        <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
                                         <td class="num">@Format2(r.Volume)</td>
                                         <td class="num">@Format2(r.Amount)</td>
                                         <td class="num">@Format2(r.UnitPrice)</td>
+                                        <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
                                     </tr>
                                 }
                             }
@@ -206,7 +208,7 @@
             <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
                 <div class="modal-content modal-blue">
                     <div class="modal-header modal-blue-header">
-                        <h5 class="modal-title">Detalle (Secuencia @selectedBinnacle.id) </h5>
+                        <h5 class="modal-title">Detalle Cierre de carga</h5>
                         <button type="button" class="btn-close" onclick="() => CloseModalAsync(true)"></button>
                     </div>
                     <div class="modal-body">
@@ -317,11 +319,15 @@
                 <div class="modal-content modal-blue">
                     <div class="modal-header modal-blue-header">
                         <h5 class="modal-title">
-                            Detalle Transaccion (#@Transaction.id)
+                            Detalle Transaccion
                         </h5>
                         <button type="button" class="btn-close" onclick="() => CloseModalAsync(false)"></button>
                     </div>
                     <div class="modal-body">
+                        <div class="col-12 col-md-12 text-center mb-2">
+                            <label class="form-label fw-bold text-primary"># Transacción</label>
+                            <input class="form-control text-center fw-bold fs-4 input-blue-readonly" value="@(Transaction?.TransactionId.ToString() ?? "")" readonly />
+                        </div>
                         <div class="col-12 col-md-12 text-center mb-2">
                             <label class="form-label fw-bold text-primary"># Secuencia</label>
                             <input class="form-control text-center fw-bold fs-4 input-blue-readonly" value="@(Transaction?.id.ToString() ?? "")" readonly />
@@ -359,9 +365,9 @@
 
     private bool isCalculatingNet;
 
-    private decimal inputGross;
-    private decimal inputNet;
-    private decimal inputTemperature;
+    private decimal? inputGross;
+    private decimal? inputNet;
+    private decimal? inputTemperature;
 
     private List<ConnItem> connections = new();
     private string selectedName = "";
@@ -443,8 +449,8 @@
         }
         catch (OperationCanceledException)
         {
-            await FileLogger.ErrorAsync("ConnectAsync => Timeout (10s)");
-            ToastService.ShowError("La conexión tardó más de 15 segundos,se canceló intente nuevamente.", "Tiempo de espera");
+            await FileLogger.ErrorAsync("ConnectAsync => Timeout (30s)");
+            ToastService.ShowError("La conexión tardó más de 30 segundos,se canceló intente nuevamente.", "Tiempo de espera");
         }
         catch (Exception ex)
         {
@@ -545,9 +551,10 @@
         isCloseManual = true;
         isUpdateTrans = false;
         selectedBinnacle = row;
-        inputGross = 0;
-        inputNet = 0;
-        inputTemperature = 0;
+        inputGross = null;
+        inputNet = null;
+        inputTemperature = null;
+
 
         showBinnacleModal = true;
         StateHasChanged();
@@ -631,9 +638,9 @@
                 await CloseLoadApi.CloseManualAsync(
                     station: selectedName,
                     secuenciaBuscar: selectedBinnacle!.id,
-                    volumenGross: inputGross,
-                    volumenNetoCt: inputNet,
-                    temperatura: inputTemperature);
+                    volumenGross: inputGross ?? 0m,
+                    volumenNetoCt: inputNet ?? 0m,
+                    temperatura: inputTemperature ?? 0m);
 
                 ToastService.ShowSuccess("La carga fue cerrada correctamente.");
             }
@@ -675,8 +682,8 @@
                 station: selectedName,
                 intDispensario: disp,
                 intProducto: prod,
-                temperatura: inputTemperature,
-                volumenGross: inputGross);
+                temperatura: inputTemperature ?? 0m,
+                volumenGross: inputGross ?? 0m);
 
             inputNet = volNetoAuto;
 
