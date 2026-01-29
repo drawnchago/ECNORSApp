@@ -1,0 +1,171 @@
+﻿@page "/handbook"
+@using ECNORSApp.Data.DTO
+@using Microsoft.AspNetCore.Components.Forms
+@using ECNORSApp.Services
+@inject HandbookApi HandbookApi
+@inject ECNORSApp.Services.IToastService ToastService
+@inject ECNORSApp.Services.IFileLoggerService FileLogger
+
+<h4>📘 Base de conocimiento</h4>
+
+<div class="row g-3 align-items-end">
+    <div class="col-12 col-md-5">
+        <div class="col-12 col-md-4">
+            <label class="form-label fw-bold">Carpeta destino</label>
+            <input class="form-control" placeholder="Ej: Manuales, Imagenes, PDF" @bind="folder" />
+        </div>
+        <label class="form-label fw-bold">Archivo</label>
+        <div class="d-flex align-items-center gap-3">
+            <label class="btn btn-outline-primary d-flex align-items-center gap-2 mb-0">
+                <span>📁</span>
+                <span>  @(_file?.Name ?? "Seleccionar archivo")</span>
+                <InputFile OnChange="OnFileSelected" hidden />
+            </label>
+
+            <button class="btn btn-success mt-3" @onclick="Upload" disabled="@(_file is null || isBusy)"> ⬆️ Subir archivo </button>
+        </div>
+    </div>
+</div>
+
+<hr />
+
+<button class="btn btn-secondary mb-2" @onclick="Load">Refrescar</button>
+
+<table class="table table-sm table-striped">
+    <thead>
+        <tr>
+            <th>Nombre</th>
+            <th>Tipo</th>
+            <th>Tamaño</th>
+            <th>Fecha</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var f in files)
+        {
+            <tr>
+                <td>@f.OriginalName</td>
+                <td>@f.ContentType</td>
+                <td>@FormatBytes(f.SizeBytes)</td>
+                <td>@f.CreatedAtUtc.ToLocalTime()</td>
+                <td>
+                    <button class="btn btn-outline-primary btn-sm"
+                            @onclick="() => Download(f.Id)">
+                        Descargar
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    private InputFile? fileInput;
+
+    private string? folder = "Manual";
+    private IBrowserFile? _file;
+    private bool isBusy;
+
+    private List<HandbookDto> files = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        try
+        {
+            isBusy = true;
+
+            files = (await HandbookApi.GetAsync()).ToList();
+            if (files.Count == 0)
+                ToastService.ShowInfo("No hay archivos cargados.");
+
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync($"❌ Error al cargar=>"+ ex.Message);
+            ToastService.ShowError("❌ Error al cargar");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        _file = e.File;
+        FileLogger.InfoAsync($"Archivo seleccionado | {_file.Name}");
+        ToastService.ShowInfo($"Archivo seleccionado: {_file.Name}");
+    }
+
+    private async Task Upload()
+    {
+        if (_file is null || string.IsNullOrWhiteSpace(folder)) return;
+
+        try
+        {
+            isBusy = true;
+            FileLogger.InfoAsync($"⏳ Subiendo archivo | Folder:{folder} | File:{_file}");
+            ToastService.ShowInfo($"⏳ Subiendo archivo...");
+
+            await using var stream = _file.OpenReadStream(50_000_000);
+
+            await HandbookApi.UploadAsync( stream, _file.Name, _file.ContentType, folder);
+
+            await FileLogger.InfoAsync($"✅ Archivo cargado correctamente.");
+            ToastService.ShowSuccess($"✅ Archivo cargado correctamente.");
+            _file = null;
+
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync($"❌ Error al subir: " + ex.Message);
+            ToastService.ShowError($"❌ Error al subir,intente nuevamente");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task Download(long id)
+    {
+        try
+        {
+            isBusy = true;
+            await FileLogger.InfoAsync($"Descargando...| id:{id}");
+            ToastService.ShowInfo($"Descargando..");
+
+            var bytes = await HandbookApi.DownloadAsync(id);
+
+            var path = Path.Combine(FileSystem.AppDataDirectory, $"handbook_{id}");
+            await File.WriteAllBytesAsync(path, bytes);
+
+            await FileLogger.InfoAsync($"Descargando...| id:{id}");
+            ToastService.ShowSuccess($"✅ Guardado en: {path}");
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync("❌ Error al descargar: " + ex.Message);
+            ToastService.ShowError("❌ Error al descargar");
+        }
+        finally
+        {
+            isBusy = false;
+            Load();
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:0.0} KB";
+        return $"{bytes / 1024.0 / 1024.0:0.0} MB";
+    }
+}

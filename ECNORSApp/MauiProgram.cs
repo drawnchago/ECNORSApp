@@ -1,7 +1,6 @@
 ﻿using ECNORSApp.Services;
 using ECNORSAppData.Data.Config;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Maui.Storage;
 using static ECNORSApp.Services.CloseLoadApi;
@@ -30,9 +29,11 @@ namespace ECNORSApp
 #endif
             builder.Services.AddMudServices();
 
+            // ✅ Cargar appsettings.json como MauiAsset (desde el paquete)
             using (var stream = FileSystem.OpenAppPackageFileAsync("appsettings.json")
                                           .GetAwaiter().GetResult())
             {
+                // Esto se añade al final, así que "gana" si ya había algo previo
                 builder.Configuration.AddJsonStream(stream);
             }
 
@@ -42,19 +43,28 @@ namespace ECNORSApp
             builder.Services.AddSingleton<IToastService, ToastService>();
             builder.Services.AddSingleton<IFileLoggerService, FileLoggerService>();
 
-            // HttpClient (typed client)
-            var apiBaseUrl = builder.Configuration["Api:BaseUrl"]
-                ?? throw new InvalidOperationException("Api:BaseUrl no configurado en appsettings.json");
+            // HttpClient base
+            var apiBaseUrl = builder.Configuration["Api:BaseUrl"];
+            if (string.IsNullOrWhiteSpace(apiBaseUrl))
+                throw new InvalidOperationException("Api:BaseUrl no configurado en appsettings.json (Build Action debe ser MauiAsset).");
 
+            var baseUri = new Uri(apiBaseUrl);
+
+            // CloseLoadApi (NO se daña)
             builder.Services.AddHttpClient<CloseLoadApi>(client =>
             {
-                client.BaseAddress = new Uri(apiBaseUrl);
+                client.BaseAddress = baseUri;
                 client.Timeout = TimeSpan.FromSeconds(60);
             });
 
-
-            // Interfaz -> implementación (una sola vez)
             builder.Services.AddScoped<ICloseLoadApi>(sp => sp.GetRequiredService<CloseLoadApi>());
+
+            // HandbookApi
+            builder.Services.AddHttpClient<HandbookApi>(client =>
+            {
+                client.BaseAddress = baseUri;
+                client.Timeout = TimeSpan.FromSeconds(60);
+            });
 
             var app = builder.Build();
             _ = app.Services.GetRequiredService<IFileLoggerService>();
