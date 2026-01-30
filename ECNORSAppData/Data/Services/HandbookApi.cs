@@ -36,7 +36,7 @@ public sealed class HandbookApi
     }
 
     // SUBIR
-    public async Task<HandbookUploadResponseDto> UploadAsync(Stream stream,string fileName,string contentType,string? folder,CancellationToken ct = default)
+    public async Task<HandbookUploadResponseDto> UploadAsync(Stream stream, string fileName, string contentType, string? folder, CancellationToken ct = default)
     {
         using var form = new MultipartFormDataContent();
 
@@ -61,4 +61,18 @@ public sealed class HandbookApi
         resp.EnsureSuccessStatusCode();
         return await resp.Content.ReadAsByteArrayAsync(ct);
     }
+
+    // VER (devuelve URI para abrir en navegador/visor)
+    public Uri GetViewPdfUri(long id)
+    {
+        if (_http.BaseAddress is null)
+            throw new InvalidOperationException("HttpClient.BaseAddress no está configurado");
+
+        // Quita /swagger si existe y regresa al root del host
+        var baseUri = _http.BaseAddress;
+        var root = new Uri(baseUri.GetLeftPart(UriPartial.Authority)); // https://host.com
+
+        return new Uri(root, $"api/handbook/{id}/view");
+    }
+
 }
