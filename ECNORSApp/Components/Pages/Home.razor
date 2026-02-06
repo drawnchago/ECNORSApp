@@ -169,6 +169,7 @@
                                 <th class="num">Volumen</th>
                                 <th class="num">Importe</th>
                                 <th class="num">Precio</th>
+                                <th class="num">Totalizador F.</th>
                                 <th>Fecha</th>
                             </tr>
                         </thead>
@@ -190,6 +191,7 @@
                                         <td class="num">@Format2(r.Volume)</td>
                                         <td class="num">@Format2(r.Amount)</td>
                                         <td class="num">@Format2(r.UnitPrice)</td>
+                                        <td>@r.strTotalizadorFinal</td>
                                         <td>@(r.Date?.ToString("yyyy-MM-dd HH:mm"))</td>
                                     </tr>
                                 }
@@ -344,9 +346,13 @@
                                 <label class="form-label fw-bold">Precio(Temperatura)</label>
                                 <input class="form-control input-blue" type="number" @bind="inputTemperature" />
                             </div>
-                            <div class="col-12 mb-2">
+                            <div class="col-6 mb-2">
                                 <label class="form-label fw-bold">Monto(V.Neto)</label>
                                 <input class="form-control input-blue" type="number" @bind="inputNet" />
+                            </div>
+                            <div class="col-6 mb-2">
+                                <label class="form-label fw-bold">Totalizador</label>
+                                <input class="form-control input-blue" type="number" @bind="inputTotalizadorFinal" />
                             </div>
                         </div>
                     </div>
@@ -368,6 +374,7 @@
     private decimal? inputGross;
     private decimal? inputNet;
     private decimal? inputTemperature;
+    private decimal? inputTotalizadorFinal;
 
     private List<ConnItem> connections = new();
     private string selectedName = "";
@@ -543,9 +550,18 @@
         inputGross = (decimal)(Transaction.Volume ?? 0d);
         inputNet = (decimal)(Transaction.Amount ?? 0d);
         inputTemperature = (decimal)(Transaction.UnitPrice ?? 0d);
+        inputTotalizadorFinal = ParseDecimalOrZero(Transaction.strTotalizadorFinal);
+
         StateHasChanged(); 
     }
+    private static decimal ParseDecimalOrZero(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s))
+            return 0m;
 
+        var normalized = s.Trim().Replace(",", ".");
+        return decimal.TryParse( normalized, NumberStyles.Any, CultureInfo.InvariantCulture, out var v) ? v : 0m;
+    }
     private async Task OpenBinnacleModalAsync(BinnacleDto row)
     {
         isCloseManual = true;
@@ -607,14 +623,15 @@
 
             if (isUpdateTrans)
             {
-                await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | BadRequest | Station=> " + selectedName + "Sequence=> " + Transaction.id + "UnitPrice=> " + (double)inputTemperature + "Volume=> " + (double)inputGross + "Amount=> " + (double)inputNet);
+                await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | BadRequest | Station=> " + selectedName + "Sequence=> " + Transaction.id + "UnitPrice=> " + (double)inputTemperature + "Volume=> " + (double)inputGross + "Amount=> " + (double)inputNet + "Totalizador=> " + inputTotalizadorFinal);
                 var dto = new TransactionUpdateDto
                 {
                     Station = selectedName,
-                    Sequence = Transaction!.id,
+                    TransactionId = Transaction!.TransactionId,
                     UnitPrice = (double)inputTemperature,
                     Volume = (double)inputGross,
-                    Amount = (double)inputNet
+                    Amount = (double)inputNet,
+                    strTotalizadorFinal = inputTotalizadorFinal?.ToString(CultureInfo.InvariantCulture)
                 };
 
                 var resp = await CloseLoadApi.UpdateTransactionBySequenceAsync(dto);
