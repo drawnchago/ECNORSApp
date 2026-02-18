@@ -1,0 +1,358 @@
+﻿@page "/handbook"
+@using ECNORSApp.Data.DTO
+@using Microsoft.AspNetCore.Components.Forms
+@using ECNORSApp.Services
+@inject HandbookApi HandbookApi
+@inject ECNORSApp.Services.IToastService ToastService
+@inject ECNORSApp.Services.IFileLoggerService FileLogger
+
+<h4>📘 Base de conocimiento</h4>
+
+<div class="table-card">
+    <div class="table-toolbar">
+        <div class="fw-semibold">Documentación</div>
+        <div class="d-flex gap-2">
+            <button class="btn btn-primary btn-sm" @onclick="Load" disabled="@isBusy">Refrescar 🔄</button>
+             <button class="btn btn-success btn-sm" @onclick="OpenUploadModal" disabled="@isBusy" title="Subir archivo"><span class="fw-bold">Agregar +</span></button>
+        </div>
+    </div>
+
+    <div class="table-responsive table-responsive-modern">
+        <table class="table table-hover align-middle mb-0 table-modern">
+            <thead>
+                <tr>
+                    <th class="text-nowrap">Nombre</th>
+                    @* <th class="text-nowrap">Tipo</th>
+                    <th class="text-nowrap">Tamaño</th>
+                    <th class="text-nowrap">Fecha</th> *@
+                    <th class="text-nowrap text-end">Acciones</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @if (files.Count == 0)
+                {
+                    <tr>
+                        <td colspan="5" class="text-muted py-4 text-center">
+                            No hay archivos cargados.
+                        </td>
+                    </tr>
+                }
+                else
+                {
+                    var grouped = files
+                    .OrderBy(f => GetFolder(f.RelativePath))
+                    .ThenBy(f => f.OriginalName)
+                    .GroupBy(f => GetFolder(f.RelativePath))
+                    .ToList();
+
+                <tbody>
+                    @if (files.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="2" class="text-muted py-4 text-center">
+                                No hay archivos cargados.
+                            </td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (var group in grouped)
+                        {
+                            <!-- Fila separador -->
+                            <tr class="folder-row">
+                                <td colspan="2" class="fw-bold">
+                                    📁 @group.Key
+                                </td>
+                            </tr>
+
+                            @foreach (var f in group)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">
+                                        <span title="@f.OriginalName">@f.OriginalName</span>
+                                    </td>
+
+                                    <td class="text-end d-flex gap-2 justify-content-end">
+                                        <button class="btn btn-outline-secondary btn-sm"
+                                                @onclick="() => ViewPdf(f.Id)"
+                                                disabled="@isBusy">
+                                            👁
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                @onclick="() => Download(f.Id)"
+                                                disabled="@isBusy">
+                                            ⬇
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick="() => DeleteFile(f.Id)"
+                                                disabled="@isBusy"
+                                                title="Eliminar archivo">
+                                            🗑
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+                </tbody>
+
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+@if (showUploadModal)
+{
+    <div class="modal-backdrop fade show"></div>
+
+    <div class="modal fade show d-block" tabindex="-1" role="dialog" aria-modal="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Subir archivo</h5>
+                    <button type="button" class="btn-close" @onclick="CloseUploadModal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                    <div class="row g-3 align-items-end">
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Carpeta destino</label>
+                            <input class="form-control" placeholder="Ej: Manuales, Imagenes, PDF" @bind="folder" />
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label fw-bold">Archivo</label>
+
+                            <div class="d-flex align-items-center gap-3 flex-wrap">
+                                <label class="col-12 btn btn-outline-primary d-flex align-items-center gap-2 mb-0">
+                                    <span>📁</span>
+                                    <span>@(_file?.Name ?? "Seleccionar archivo")</span>
+                                    <InputFile OnChange="OnFileSelected" accept=".pdf,application/pdf" hidden />
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button class="btn btn-outline-secondary" @onclick="CloseUploadModal" disabled="@isBusy">
+                        Cancelar
+                    </button>
+                    <button class="btn btn-success" @onclick="UploadFromModal" disabled="@(_file is null || isBusy)">
+                        @if (isBusy)
+                        {
+                            <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
+                            <span class="ms-2">Guardando...</span>
+                         }
+                         @if(!isBusy)
+                        {
+                            <span>Subir archivo</span>
+                        }
+                        </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private InputFile? fileInput;
+    public bool isBusy = false;
+    private string? folder = "Manual";
+    private IBrowserFile? _file;
+
+    private List<HandbookDto> files = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Load();
+    }
+
+    private async Task Load()
+    {
+        try
+        {
+
+            files = (await HandbookApi.GetAsync()).ToList();
+            if (files.Count == 0)
+                ToastService.ShowInfo("No hay archivos cargados.");
+
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync($"❌ Error al cargar=>"+ ex.Message);
+            ToastService.ShowError("❌ Error al cargar");
+        }
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        // Validación por ContentType
+        var isPdf = string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+
+        // Validación por extensión (respaldo)
+        var hasPdfExt = Path.GetExtension(file.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
+
+        if (!isPdf && !hasPdfExt)
+        {
+            _file = null;
+            ToastService.ShowError("Solo se permiten archivos PDF (.pdf).");
+            FileLogger.ErrorAsync($"Archivo rechazado (no PDF) | Name={file.Name} | Type={file.ContentType}");
+            return;
+        }
+
+        _file = file;
+        FileLogger.InfoAsync($"PDF seleccionado | {_file.Name} | Type={_file.ContentType}");
+        ToastService.ShowInfo($"PDF seleccionado: {_file.Name}");
+    }
+
+    private async Task Upload()
+    {
+        isBusy = true;
+
+        if (_file is null || string.IsNullOrWhiteSpace(folder)) return;
+
+        try
+        {
+            isBusy = true;
+            FileLogger.InfoAsync($"⏳  Subiendo archivo... Folder:{folder} | File:{_file}");
+
+            await using var stream = _file.OpenReadStream(50_000_000);
+
+            await HandbookApi.UploadAsync( stream, _file.Name, _file.ContentType, folder);
+            await FileLogger.InfoAsync($"✅ Archivo cargado correctamente.");
+            ToastService.ShowSuccess($"✅ Archivo cargado correctamente.");
+            _file = null;
+
+            await Load();
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync($"❌ Error al subir: " + ex.Message);
+            ToastService.ShowError($"❌ Error al subir,intente nuevamente");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+
+    private async Task Download(long id)
+    {
+        try
+        {
+            isBusy = true;
+            await FileLogger.InfoAsync($"Descargando...| id:{id}");
+            ToastService.ShowInfo($"Descargando..");
+
+            var bytes = await HandbookApi.DownloadAsync(id);
+
+            var path = Path.Combine(FileSystem.AppDataDirectory, $"handbook_{id}");
+            await File.WriteAllBytesAsync(path, bytes);
+
+            await FileLogger.InfoAsync($"Descargando...| id:{id}");
+            ToastService.ShowSuccess($"✅ Guardado en: {path}");
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync("❌ Error al descargar: " + ex.Message);
+            ToastService.ShowError("❌ Error al descargar");
+        }
+        finally
+        {
+            isBusy = false;
+            Load();
+        }
+    }
+
+    private static string FormatBytes(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:0.0} KB";
+        return $"{bytes / 1024.0 / 1024.0:0.0} MB";
+    }
+
+    private bool showUploadModal;
+
+    private void OpenUploadModal()
+    {
+        showUploadModal = true;
+    }
+
+    private void CloseUploadModal()
+    {
+        showUploadModal = false;
+    }
+
+    private async Task UploadFromModal()
+    {
+        await Upload();            // reutiliza tu método actual
+        if (!isBusy)               // por si tarda, evita cerrar antes
+            showUploadModal = false;
+    }
+    private async Task ViewPdf(long id)
+    {
+        try
+        {
+            isBusy = true;
+
+            var uri = HandbookApi.GetViewPdfUri(id);
+            await Launcher.Default.OpenAsync(uri);
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync("❌ Error al visualizar: " + ex.Message);
+            ToastService.ShowError("No se pudo abrir el documento");
+        }
+        finally
+        {
+            isBusy = false;
+        }
+    }
+    private static string GetFolder(string? relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return "Sin carpeta";
+
+        var parts = relativePath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+
+        var storageIndex = Array.FindIndex(parts,
+            p => p.Equals("Storage", StringComparison.OrdinalIgnoreCase));
+
+        if (storageIndex >= 0 && storageIndex + 1 < parts.Length)
+            return parts[storageIndex + 1];  // <-- "Manual"
+
+        return "Sin carpeta";
+    }
+    private async Task DeleteFile(long id)
+    {
+        if (isBusy) return;
+
+        try
+        {
+            isBusy = true;
+
+            var response = await HandbookApi.DeleteAsync(id);
+
+            if (response.succes)
+            {
+                files.RemoveAll(x => x.Id == id);
+                ToastService.ShowSuccess(response.message ?? "Eliminado");
+            }
+            else
+            {
+                ToastService.ShowError(response.message ?? "Error al eliminar");
+            }
+        }
+        finally
+        {
+            isBusy = false;
+            Load();
+        }
+    }
+
+}
