@@ -74,5 +74,30 @@ public sealed class HandbookApi
 
         return new Uri(root, $"api/handbook/{id}/view");
     }
+    public async Task<Response<bool>> DeleteAsync(long id, CancellationToken ct = default)
+    {
+        try
+        {
+            using var resp = await _http.DeleteAsync($"api/handbook/{id}", ct);
+            var result = await resp.Content.ReadFromJsonAsync<Response<bool>>(cancellationToken: ct);
+
+            if (result is not null)
+                return result;
+
+            return new Response<bool>
+            {
+                succes = false,
+                message = "No se recibió respuesta válida del servidor"
+            };
+        }
+        catch (Exception ex)
+        {
+            return new Response<bool>
+            {
+                succes = false,
+                message = $"Error de conexión: {ex.Message}"
+            };
+        }
+    }
 
 }

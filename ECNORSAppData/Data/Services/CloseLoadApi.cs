@@ -19,6 +19,7 @@ public sealed class CloseLoadApi : ICloseLoadApi
         Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
         Task<decimal> GetNetVolAutoAsync(string station,int intDispensario,int intProducto,decimal temperatura,decimal volumenGross,CancellationToken ct = default);
         Task<TransactionResp<bool>> UpdateTransactionBySequenceAsync(TransactionUpdateDto dto,CancellationToken ct = default);
+        Task<TransactionResp<bool>> CloseForcedAsync(string station, int idSec, CancellationToken ct = default);
 
     }
     public CloseLoadApi(HttpClient http) => _http = http;
@@ -122,6 +123,54 @@ public sealed class CloseLoadApi : ICloseLoadApi
         var result = await response.Content.ReadFromJsonAsync<TransactionResp<bool>>(cancellationToken: ct);
         return result ?? TransactionResp<bool>.Fail("Respuesta vacía del servidor.");
     }
+    public async Task<TransactionResp<bool>> CloseForcedAsync(string station, int idSec, CancellationToken ct = default)
+    {
+        var url = "api/transaction/closeForced";
+
+        var body = new
+        {
+            station,
+            idSec
+        };
+
+        var response = await _http.PostAsJsonAsync(url, body, ct);
+
+        // Tu endpoint regresa BadRequest con { Success=false, Message=... }
+        // y Ok con { Success=true, Message=... }
+        // Entonces NO usamos EnsureSuccessStatusCode, mejor leemos el body.
+
+        if (!response.IsSuccessStatusCode)
+        {
+            // Intentamos leer respuesta como el mismo contrato
+            try
+            {
+                var err = await response.Content.ReadFromJsonAsync<DbInfoResp<object>>(cancellationToken: ct);
+                var msg = err?.Message ?? $"Error HTTP {(int)response.StatusCode}";
+                return TransactionResp<bool>.Fail(msg);
+            }
+            catch
+            {
+                var raw = await response.Content.ReadAsStringAsync(ct);
+                return TransactionResp<bool>.Fail($"Error HTTP {(int)response.StatusCode}: {raw}");
+            }
+        }
+
+        // Si tu endpoint devuelve TransactionResp<bool> directo, descomenta esto:
+        // var result = await response.Content.ReadFromJsonAsync<TransactionResp<bool>>(cancellationToken: ct);
+        // return result ?? TransactionResp<bool>.Fail("Respuesta vacía del servidor.");
+
+        // Como tu endpoint devuelve { Success, Message } (anónimo), lo mapeamos:
+        var ok = await response.Content.ReadFromJsonAsync<DbInfoResp<object>>(cancellationToken: ct);
+
+        if (ok is null)
+            return TransactionResp<bool>.Fail("Respuesta vacía del servidor.");
+
+        if (!ok.Success)
+            return TransactionResp<bool>.Fail(ok.Message ?? "Error al ejecutar el cierre forzado.");
+
+        return TransactionResp<bool>.Ok(true, ok.Message ?? "Cierre forzado ejecutado correctamente.");
+    }
+
     public sealed class DbInfoResp<T>
     {
         public bool Success { get; set; }

@@ -9,15 +9,13 @@
 @inject ECNORSApp.Services.IToastService ToastService
 @inject ECNORSApp.Services.IFileLoggerService FileLogger
 
-
-<h4>Selecciona la estación</h4>
-
-<button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">
-    Exportar log a Descargas
-</button> 
+<div class="d-flex justify-content-end">
+    <button class="btn btn-warning"@onclick="ExportLog"disabled="@isBusy">Exportar Log</button>
+</div>
+<h4>Estación</h4>
 <div class="d-flex align-items-center gap-2 mt-2">
     <select class="form-select" style="max-width:260px" @bind="selectedName" disabled="@(isBusy || isConnected)">
-        <option value="">-- Selecciona --</option>
+        <option value="">-- Selecciona la estación --</option>
         @foreach (var c in connections)
         {
             <option value="@c.name">@c.name</option>
@@ -201,117 +199,147 @@
 
     @if (showBinnacleModal)
     {
-        <div class="modal-backdrop blue-backdrop" onclick="() => CloseModalAsync(true)"></div>
+        <div class="modal-backdrop-custom"></div>
         <div class="modal d-block" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
                 <div class="modal-content modal-blue">
                     <div class="modal-header modal-blue-header">
-                        <h5 class="modal-title">Detalle (Secuencia @selectedBinnacle.id) </h5>
-                        <button type="button" class="btn-close" onclick="() => CloseModalAsync(true)"></button>
+                        <h5 class="modal-title">Detalle (#Sec. @selectedBinnacle.id) </h5>
+                        <button type="button" class="btn-close" @onclick="() => CloseModalAsync(true)"></button>
                     </div>
                     <div class="modal-body">
-                        <div class="col-12 col-md-12 text-center mb-2">
-                            <label class="form-label fw-bold text-primary"># Secuencia</label>
-                            <input class="form-control text-center fw-bold fs-4 input-blue-readonly" value="@(selectedBinnacle?.id.ToString() ?? "")" readonly />
-                        </div>
-                    <div class="section-separator">
-                        <span>Bitácora</span>
-                    </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Dispensario</label>
-                                <input class="form-control input-blue-readonly fw-bold" value="@selectedBinnacle?.DispensaryId" readonly disabled/>
-                            </div>
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Manguera</label>
-                                <input class="form-control input-blue-readonly" value="@selectedBinnacle?.HoseId" readonly disabled/>
-                            </div>
-                        </div>
+                        <MudStack Spacing="2" Style="margin-bottom:5%;">
+                            <MudPaper Elevation="6" Class="@($"bitacora-acordeon {(_expandSequence ? "pa-4" : "pa-0")}")">
+                                <MudButton OnClick="OnExpandCollapse3Click" FullWidth="true" Class="d-flex justify-content-center align-items-center"><span class="fw-bold text-primary"># Secuencia</span></MudButton>
+                                <MudDivider/>
+                                    <MudCollapse Expanded="_expandSequence">
+                                    <div class="col-12 col-md-12 text-center mb-2">
+                                        <input class="form-control text-center fw-bold fs-4 input-blue-readonly" value="@(selectedBinnacle?.id.ToString() ?? "")" readonly />
+                                    </div>
+                                </MudCollapse>
+                            </MudPaper>
+                        </MudStack>
+                    <!-- BITÁCORA -->
+                        <MudStack Spacing="2" Style="margin-bottom:5%;">
+                            <MudPaper Elevation="6"  Class="@($"bitacora-acordeon {(_expandBinnacle ? "pa-4" : "pa-0")}")">
+                                <MudButton OnClick="OnExpandCollapseClick" FullWidth="true" Class="d-flex justify-content-center align-items-center"><span class="fw-bold text-primary">Bitacora</span></MudButton>
+                                <MudDivider/>
+                            <MudCollapse Expanded="_expandBinnacle">
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label fw-bold">Dispensario</label>
+                                        <input class="form-control input-blue-readonly fw-bold" value="@selectedBinnacle?.DispensaryId" readonly disabled/>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label fw-bold">Manguera</label>
+                                        <input class="form-control input-blue-readonly" value="@selectedBinnacle?.HoseId" readonly disabled/>
+                                    </div>
+                                </div>
 
-                        <div class="col-12 col-md-12 mb-3">
-                            <label class="form-label fw-bold">Producto</label>
-                            <input class="form-control fw-bold text-white text-center @(selectedBinnacle?.ProductId switch
-                               {
-                                   1 => "bg-red",
-                                   2 => "bg-primary",
-                                   3 => "bg-dark",
-                                   _ => ""
-                               })"
-                               value="@(
-                                    selectedBinnacle?.ProductId == 1 ? "SUPREME +" :
-                                   selectedBinnacle?.ProductId == 2 ? "EXTRA" :
-                                   selectedBinnacle?.ProductId == 3 ? "DIESEL" :
-                                   selectedBinnacle?.ProductId?.ToString() ?? "")"
-                               readonly />
-                        </div>
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Programado</label>
-                            <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.Scheduled)"readonly disabled />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Vendido</label>
-                            <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.Sold)"readonly disabled />
-                        </div>
-                    </div>
+                                <div class="col-12 col-md-12 mb-3">
+                                    <label class="form-label fw-bold">Producto</label>
+                                    <input class="form-control fw-bold text-white text-center @(selectedBinnacle?.ProductId switch
+                                        {
+                                            1 => "bg-red",
+                                            2 => "bg-primary",
+                                            3 => "bg-dark",
+                                            _ => ""
+                                        })"
+                                        value="@(
+                                            selectedBinnacle?.ProductId == 1 ? "SUPREME +" :
+                                            selectedBinnacle?.ProductId == 2 ? "EXTRA" :
+                                            selectedBinnacle?.ProductId == 3 ? "DIESEL" :
+                                            selectedBinnacle?.ProductId?.ToString() ?? "")"
+                                        readonly />
+                                </div>
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label fw-bold">Programado</label>
+                                    <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.Scheduled)"readonly disabled />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-bold">Vendido</label>
+                                    <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.Sold)"readonly disabled />
+                                </div>
+                            </div>
 
-                    <div class="row g-2 mb-2">
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Volumen vendido</label>
-                            <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.SoldVolume)"readonly disabled />
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-bold">Precio unitario</label>
-                            <input class="form-control input-blue-readonly" value="@Format2(selectedBinnacle?.UnitPrice)" readonly disabled />
-                        </div>
-                    </div>
-                        <div class="section-separator">
-                            <span>Correciones</span>
-                        </div>
-                        <div class="d-flex justify-content-end mt-2">
-                            <button class="btn btn-outline-primary btn-sm"
-                                    @onclick="GetNetVolAutoAsync"
-                                    disabled="@isCalculatingNet">
-                                @if (isCalculatingNet)
-                                {
-                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                    <span>Calculando...</span>
-                                }
-                                else
-                                {
-                                    <span>Calcular Volumen</span>
-                                }
-                            </button>
-                        </div>
-                        <div class="row g-2 mb-2">
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Volumen(Bruto/GROSS)</label>
-                                <input class="form-control input-blue" type="number" @bind="inputGross" />
+                            <div class="row g-2 mb-2">
+                                <div class="col-6">
+                                    <label class="form-label fw-bold">Volumen vendido</label>
+                                    <input class="form-control input-blue-readonly"value="@Format2(selectedBinnacle?.SoldVolume)"readonly disabled />
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label fw-bold">Precio unitario</label>
+                                    <input class="form-control input-blue-readonly" value="@Format2(selectedBinnacle?.UnitPrice)" readonly disabled />
+                                </div>
                             </div>
-                            <div class="col-6">
-                                <label class="form-label fw-bold">Precio(Temperatura)</label>
-                                <input class="form-control input-blue" type="number" @bind="inputTemperature" />
-                            </div>
-                            <div class="col-12 mb-2">
-                                <label class="form-label fw-bold">Monto(V.Neto)</label>
-                                <input class="form-control input-blue" type="number" @bind="inputNet" />
-                            </div>
-                        </div>
+                            </MudCollapse>
+                        </MudPaper>
+                    </MudStack>
+                        <!-- CIERRE -->
+                        <MudStack Spacing="5" >
+                            <MudPaper Elevation="6" Class="@($"bitacora-acordeon {(_expandCloseLoad ? "pa-4" : "pa-0")}")">
+                                <MudButton OnClick="OnExpandCollapse2Click" FullWidth="true" Class="d-flex justify-content-center align-items-center"><span class="fw-bold text-primary">Cierre Manual</span></MudButton>
+                                <MudCollapse Expanded="_expandCloseLoad">
+                                    <div class="d-flex justify-content-center mt-2">
+                                        <MudRadioGroup @bind-Value="isCloseMode">
+                                            <MudRadio Value="false" Color="Color.Secondary" Dense="false">Normal</MudRadio>
+                                            <MudRadio Value="true" Color="Color.Primary" Dense="true">Forzado</MudRadio>
+                                        </MudRadioGroup>
+                                    </div>
+                                    @if (!isCloseMode)
+                                    {
+                                        <div class="modal-footer modal-blue-footer d-flex justify-content-end mt-2 ">
+                                            <button class="btn btn-outline-primary btn-sm"
+                                                    @onclick="GetNetVolAutoAsync"
+                                                    disabled="@isCalculatingNet">
+                                                @if (isCalculatingNet)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    <span>Calculando...</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>Calcular Volumen</span>
+                                                }
+                                            </button>
+                                        </div>
+                                        <div class="row g-2 mb-2">
+                                            <div class="col-6">
+                                                <label class="form-label fw-bold">V.Bruto(GROSS)</label>
+                                                <input class="form-control input-blue" type="number" @bind="inputGross" />
+                                            </div>
+                                            <div class="col-6">
+                                                <label class="form-label fw-bold">Precio(Temperatura)</label>
+                                                <input class="form-control input-blue" type="number" @bind="inputTemperature" />
+                                            </div>
+                                            <div class="col-12 mb-2">
+                                                <label class="form-label fw-bold">Monto(V.Neto)</label>
+                                                <input class="form-control input-blue" type="number" @bind="inputNet" />
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer modal-blue-footer  d-flex justify-content-between">
+                                            <button class="btn btn-outline-info" @onclick="() => CloseModalAsync(true)"> Cerrar</button>
+                                            <button class="btn btn-success" @onclick="SaveModalAsync" disabled="@isSavingModal"> @(isSavingModal ? "Guardando..." : "Guardar") </button>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <div class="modal-footer modal-blue-footer  d-flex justify-content-between">
+                                            <button class="btn btn-danger col-12 col-md-12 mb-3" @onclick="SaveModalAsync" disabled="@isSavingModal"> @(isSavingModal ? "Forzando cierre..." : "Forzar") </button>
+                                        </div>
+                                    }
+                                </MudCollapse>
+                            </MudPaper>
+                        </MudStack>
                     </div>
-                    <div class="modal-footer modal-blue-footer">
-                        <button class="btn btn-outline-primary" @onclick="() => CloseModalAsync(true)">
-                    Cerrar
-                </button>
-                        <button class="btn btn-success" @onclick="SaveModalAsync" disabled="@isSavingModal"> @(isSavingModal ? "Guardando..." : "Guardar") </button>
-                    </div>
-
                 </div>
             </div>
         </div>
     }
     @if (showTransactionModal)
     {
-        <div class="modal-backdrop blue-backdrop" onclick="() => CloseModalAsync(false)"></div>
+        <div class="modal-backdrop-custom"></div>
         <div class="modal d-block" tabindex="-1">
             <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
                 <div class="modal-content modal-blue">
@@ -319,7 +347,7 @@
                         <h5 class="modal-title">
                             Detalle Transaccion (#@Transaction.id)
                         </h5>
-                        <button type="button" class="btn-close" onclick="() => CloseModalAsync(false)"></button>
+                        <button type="button" class="btn-close" @onclick="() => CloseModalAsync(false)"></button>
                     </div>
                     <div class="modal-body">
                         <div class="col-12 col-md-12 text-center mb-2">
@@ -395,6 +423,11 @@
 
     private bool CanConnect => !string.IsNullOrWhiteSpace(selectedName);
 
+    private bool isCloseMode = false;
+    private bool _expandBinnacle = false;
+    private bool _expandCloseLoad = true;
+    private bool _expandSequence = false;
+
     protected override Task OnInitializedAsync()
     {
         connections = ConnectionSelector.GetConnections().ToList();
@@ -402,7 +435,18 @@
         isConnected = false;
         return Task.CompletedTask;
     }
-
+    private void OnExpandCollapseClick()
+    {
+        _expandBinnacle = !_expandBinnacle;
+    }
+    private void OnExpandCollapse2Click()
+    {
+        _expandCloseLoad = !_expandCloseLoad;
+    }
+    private void OnExpandCollapse3Click()
+    {
+        _expandSequence = !_expandSequence;
+    }
     private async Task ConnectAsync()
     {
         if (!CanConnect || isConnected) return;
@@ -552,18 +596,18 @@
         showBinnacleModal = true;
         StateHasChanged();
 
-        try
-        {
-            var trx = await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, row.id);
-            if (trx is null)
-                await FileLogger.ErrorAsync("GetTransactionBySequenceAsync => " + row.id);
-            // ToastService.ShowError("No se encontró transacción para esta secuencia.");
-        }
-        catch (Exception ex)
-        {
-            await FileLogger.ErrorAsync(" GetTransactionBySequenceAsync" + "Error=>"+ ex);
-            ToastService.ShowError("No se encontró Volumen,VolumenVendido,precio  o programado.");
-        }
+        // try
+        // {
+        //     var trx = await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, row.id);
+        //     if (trx is null)
+        //         await FileLogger.ErrorAsync("GetTransactionBySequenceAsync => " + row.id);
+        //     ToastService.ShowError("No se encontró transacción para esta secuencia.");
+        // }
+        // catch (Exception ex)
+        // {
+        //     await FileLogger.ErrorAsync(" GetTransactionBySequenceAsync" + "Error=>"+ ex);
+        //     ToastService.ShowError("No se encontró Volumen,VolumenVendido,precio  o programado.");
+        // }
 
         StateHasChanged();
     }
@@ -588,55 +632,76 @@
     {
         isSavingModal = true;
 
-        await FileLogger.ErrorAsync("SaveModalAsync | Start | " + inputGross + "inputNet=>" + inputNet + "inputTemperature=>" + inputTemperature);
+        await FileLogger.InfoAsync("SaveModalAsync | Start | " + "inputGross=>" + inputGross + "inputNet=>" + inputNet + "inputTemperature=>" + inputTemperature);
         try
         {
-            if (inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
+            if (!isCloseMode)//Normal
             {
-                await FileLogger.ErrorAsync("SaveModalAsync | BadRequest | " + inputGross + "inputNet=>" + inputNet + "inputTemperature=>" + inputTemperature);
-                ToastService.ShowError("Debe capturar Bruto, Neto y Temperatura.");
-                return;
-            }
-
-            if (isUpdateTrans)
-            {
-                await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | BadRequest | Station=> " + selectedName + "Sequence=> " + Transaction.id + "UnitPrice=> " + (double)inputTemperature + "Volume=> " + (double)inputGross + "Amount=> " + (double)inputNet);
-                var dto = new TransactionUpdateDto
+                await FileLogger.InfoAsync("Modo=>" + isCloseMode);
+                if (inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
                 {
-                    Station = selectedName,
-                    Sequence = Transaction!.id,
-                    UnitPrice = (double)inputTemperature,
-                    Volume = (double)inputGross,
-                    Amount = (double)inputNet
-                };
-
-                var resp = await CloseLoadApi.UpdateTransactionBySequenceAsync(dto);
-
-                if (!resp.Success)
-                {
-                    await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | End(Err)");
-                    ToastService.ShowError(resp.Message ?? "No se pudo actualizar la transacción.");
+                    await FileLogger.InfoAsync("SaveModalAsync | BadRequest | " + inputGross + "inputNet=>" + inputNet + "inputTemperature=>" + inputTemperature);
+                    ToastService.ShowError("Debe capturar Bruto, Neto y Temperatura.");
                     return;
                 }
 
-                await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | End(Ok)");
-                ToastService.ShowSuccess(resp.Message ?? "Transacción actualizada.");
-                return;
-            }
+                if (isUpdateTrans)
+                {
+                    await FileLogger.InfoAsync("SaveModalAsync | isUpdateTrans | BadRequest | Station=> " + selectedName + "Sequence=> " + Transaction.id + "UnitPrice=> " + (double)inputTemperature + "Volume=> " + (double)inputGross + "Amount=> " + (double)inputNet);
+                    var dto = new TransactionUpdateDto
+                    {
+                        Station = selectedName,
+                        Sequence = Transaction!.id,
+                        UnitPrice = (double)inputTemperature,
+                        Volume = (double)inputGross,
+                        Amount = (double)inputNet
+                    };
 
-            if (isCloseManual)
+                    var resp = await CloseLoadApi.UpdateTransactionBySequenceAsync(dto);
+
+                    if (!resp.Success)
+                    {
+                        await FileLogger.ErrorAsync("SaveModalAsync | isUpdateTrans | End(Err)");
+                        ToastService.ShowError(resp.Message ?? "No se pudo actualizar la transacción.");
+                        return;
+                    }
+
+                    await FileLogger.InfoAsync("SaveModalAsync | isUpdateTrans | End(Ok)");
+                    ToastService.ShowSuccess(resp.Message ?? "Transacción actualizada.");
+                    return;
+                }
+
+                if (isCloseManual)
+                {
+                    await FileLogger.InfoAsync($"SaveModalAsync | isCloseManual | End(Ok) | station={selectedName} seq={selectedBinnacle!.id} gross={inputGross} net={inputNet} temp={inputTemperature}");
+
+                    await CloseLoadApi.CloseManualAsync(
+                        station: selectedName,
+                        secuenciaBuscar: selectedBinnacle!.id,
+                        volumenGross: inputGross,
+                        volumenNetoCt: inputNet,
+                        temperatura: inputTemperature);
+
+                    ToastService.ShowSuccess("La carga fue cerrada correctamente.");
+                }
+            }
+            else
             {
-                await FileLogger.ErrorAsync($"SaveModalAsync | isCloseManual | End(Ok) | station={selectedName} seq={selectedBinnacle!.id} gross={inputGross} net={inputNet} temp={inputTemperature}");
+                await FileLogger.InfoAsync($"SaveModalAsync | isCloseMode | Start | station={selectedName} seq={selectedBinnacle!.id}");
 
-                await CloseLoadApi.CloseManualAsync(
-                    station: selectedName,
-                    secuenciaBuscar: selectedBinnacle!.id,
-                    volumenGross: inputGross,
-                    volumenNetoCt: inputNet,
-                    temperatura: inputTemperature);
+                var resp = await CloseLoadApi.CloseForcedAsync(station: selectedName,idSec: selectedBinnacle!.id);
 
-                ToastService.ShowSuccess("La carga fue cerrada correctamente.");
+                if (!resp.Success)
+                {
+                    await FileLogger.ErrorAsync($"SaveModalAsync | isCloseMode | End(Err) | {resp.Message}");
+                    ToastService.ShowError(resp.Message ?? "No se pudo forzar el cierre.");
+                    return;
+                }
+
+                await FileLogger.InfoAsync("SaveModalAsync | isCloseMode | End(Ok)");
+                ToastService.ShowSuccess(resp.Message ?? "Cierre forzado ejecutado correctamente.");
             }
+
         }
         catch (Exception ex)
         {
@@ -700,6 +765,7 @@
         await FileLogger.ExportToDownloadsAsync();
         ToastService.ShowSuccess("Log copiado a Descargas");
     }
+
 
     private async Task LoadAsync()
     {

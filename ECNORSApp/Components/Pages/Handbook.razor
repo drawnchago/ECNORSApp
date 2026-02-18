@@ -22,9 +22,9 @@
             <thead>
                 <tr>
                     <th class="text-nowrap">Nombre</th>
-                    <th class="text-nowrap">Tipo</th>
+                    @* <th class="text-nowrap">Tipo</th>
                     <th class="text-nowrap">Tamaño</th>
-                    <th class="text-nowrap">Fecha</th>
+                    <th class="text-nowrap">Fecha</th> *@
                     <th class="text-nowrap text-end">Acciones</th>
                 </tr>
             </thead>
@@ -40,32 +40,63 @@
                 }
                 else
                 {
-                    @foreach (var f in files)
+                    var grouped = files
+                    .OrderBy(f => GetFolder(f.RelativePath))
+                    .ThenBy(f => f.OriginalName)
+                    .GroupBy(f => GetFolder(f.RelativePath))
+                    .ToList();
+
+                <tbody>
+                    @if (files.Count == 0)
                     {
                         <tr>
-                            <td class="text-nowrap">
-                                <span class="file-name" title="@f.OriginalName">@f.OriginalName</span>
-                            </td>
-                            <td class="text-nowrap">@f.ContentType</td>
-                            <td class="text-nowrap">@FormatBytes(f.SizeBytes)</td>
-                            <td class="text-nowrap">@f.CreatedAtUtc.ToLocalTime()</td>
-                            <td class="text-end d-flex gap-2 justify-content-end">
-                                <button class="btn btn-outline-secondary btn-sm"
-                                        @onclick="() => ViewPdf(f.Id)"
-                                        disabled="@isBusy"
-                                        title="Ver documento">
-                                    👁
-                                </button>
-
-                                <button class="btn btn-outline-primary btn-sm"
-                                        @onclick="() => Download(f.Id)"
-                                        disabled="@isBusy"
-                                        title="Descargar">
-                                    ⬇
-                                </button>
+                            <td colspan="2" class="text-muted py-4 text-center">
+                                No hay archivos cargados.
                             </td>
                         </tr>
                     }
+                    else
+                    {
+                        @foreach (var group in grouped)
+                        {
+                            <!-- Fila separador -->
+                            <tr class="folder-row">
+                                <td colspan="2" class="fw-bold">
+                                    📁 @group.Key
+                                </td>
+                            </tr>
+
+                            @foreach (var f in group)
+                            {
+                                <tr>
+                                    <td class="text-nowrap">
+                                        <span title="@f.OriginalName">@f.OriginalName</span>
+                                    </td>
+
+                                    <td class="text-end d-flex gap-2 justify-content-end">
+                                        <button class="btn btn-outline-secondary btn-sm"
+                                                @onclick="() => ViewPdf(f.Id)"
+                                                disabled="@isBusy">
+                                            👁
+                                        </button>
+                                        <button class="btn btn-outline-primary btn-sm"
+                                                @onclick="() => Download(f.Id)"
+                                                disabled="@isBusy">
+                                            ⬇
+                                        </button>
+                                        <button class="btn btn-outline-danger btn-sm"
+                                                @onclick="() => DeleteFile(f.Id)"
+                                                disabled="@isBusy"
+                                                title="Eliminar archivo">
+                                            🗑
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    }
+                </tbody>
+
                 }
             </tbody>
         </table>
@@ -158,25 +189,25 @@
 
     private void OnFileSelected(InputFileChangeEventArgs e)
     {
-    var file = e.File;
+        var file = e.File;
 
-    // Validación por ContentType
-    var isPdf = string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+        // Validación por ContentType
+        var isPdf = string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
 
-    // Validación por extensión (respaldo)
-    var hasPdfExt = Path.GetExtension(file.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
+        // Validación por extensión (respaldo)
+        var hasPdfExt = Path.GetExtension(file.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
 
-    if (!isPdf && !hasPdfExt)
-    {
-        _file = null;
-        ToastService.ShowError("Solo se permiten archivos PDF (.pdf).");
-         FileLogger.ErrorAsync($"Archivo rechazado (no PDF) | Name={file.Name} | Type={file.ContentType}");
-        return;
-    }
+        if (!isPdf && !hasPdfExt)
+        {
+            _file = null;
+            ToastService.ShowError("Solo se permiten archivos PDF (.pdf).");
+            FileLogger.ErrorAsync($"Archivo rechazado (no PDF) | Name={file.Name} | Type={file.ContentType}");
+            return;
+        }
 
-    _file = file;
-     FileLogger.InfoAsync($"PDF seleccionado | {_file.Name} | Type={_file.ContentType}");
-    ToastService.ShowInfo($"PDF seleccionado: {_file.Name}");
+        _file = file;
+        FileLogger.InfoAsync($"PDF seleccionado | {_file.Name} | Type={_file.ContentType}");
+        ToastService.ShowInfo($"PDF seleccionado: {_file.Name}");
     }
 
     private async Task Upload()
@@ -188,13 +219,11 @@
         try
         {
             isBusy = true;
-            FileLogger.InfoAsync($"⏳ Subiendo archivo | Folder:{folder} | File:{_file}");
-            ToastService.ShowInfo($"⏳ Subiendo archivo...");
+            FileLogger.InfoAsync($"⏳  Subiendo archivo... Folder:{folder} | File:{_file}");
 
             await using var stream = _file.OpenReadStream(50_000_000);
 
             await HandbookApi.UploadAsync( stream, _file.Name, _file.ContentType, folder);
-
             await FileLogger.InfoAsync($"✅ Archivo cargado correctamente.");
             ToastService.ShowSuccess($"✅ Archivo cargado correctamente.");
             _file = null;
@@ -284,6 +313,46 @@
             isBusy = false;
         }
     }
+    private static string GetFolder(string? relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return "Sin carpeta";
 
+        var parts = relativePath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+
+        var storageIndex = Array.FindIndex(parts,
+            p => p.Equals("Storage", StringComparison.OrdinalIgnoreCase));
+
+        if (storageIndex >= 0 && storageIndex + 1 < parts.Length)
+            return parts[storageIndex + 1];  // <-- "Manual"
+
+        return "Sin carpeta";
+    }
+    private async Task DeleteFile(long id)
+    {
+        if (isBusy) return;
+
+        try
+        {
+            isBusy = true;
+
+            var response = await HandbookApi.DeleteAsync(id);
+
+            if (response.succes)
+            {
+                files.RemoveAll(x => x.Id == id);
+                ToastService.ShowSuccess(response.message ?? "Eliminado");
+            }
+            else
+            {
+                ToastService.ShowError(response.message ?? "Error al eliminar");
+            }
+        }
+        finally
+        {
+            isBusy = false;
+            Load();
+        }
+    }
 
 }

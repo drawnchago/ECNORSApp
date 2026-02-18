@@ -11,6 +11,7 @@ public sealed class HandbookDto
     public long SizeBytes { get; set; }
 
     public DateTime CreatedAtUtc { get; set; }
+    public string? RelativePath { get; set; }
 
 }
 public sealed class HandbookUploadResponseDto
