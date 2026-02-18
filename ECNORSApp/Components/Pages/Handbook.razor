@@ -11,9 +11,20 @@
 <div class="table-card">
     <div class="table-toolbar">
         <div class="fw-semibold">Documentación</div>
-        <div class="d-flex gap-2">
+
+        <div class="d-flex gap-2 align-items-center flex-wrap">
+            <input class="form-control form-control-sm"
+                   style="min-width:260px"
+                   placeholder="Buscar (nombre o carpeta)..."
+                   @bind="search"
+                   @bind:event="oninput"
+                   disabled="@isBusy" />
+
             <button class="btn btn-primary btn-sm" @onclick="Load" disabled="@isBusy">Refrescar 🔄</button>
-             <button class="btn btn-success btn-sm" @onclick="OpenUploadModal" disabled="@isBusy" title="Subir archivo"><span class="fw-bold">Agregar +</span></button>
+
+            <button class="btn btn-success btn-sm" @onclick="OpenUploadModal" disabled="@isBusy" title="Subir archivo">
+                <span class="fw-bold">Agregar +</span>
+            </button>
         </div>
     </div>
 
@@ -22,50 +33,45 @@
             <thead>
                 <tr>
                     <th class="text-nowrap">Nombre</th>
-                    @* <th class="text-nowrap">Tipo</th>
-                    <th class="text-nowrap">Tamaño</th>
-                    <th class="text-nowrap">Fecha</th> *@
                     <th class="text-nowrap text-end">Acciones</th>
                 </tr>
             </thead>
 
             <tbody>
-                @if (files.Count == 0)
+                @if (FilteredFiles.Count == 0)
                 {
                     <tr>
-                        <td colspan="5" class="text-muted py-4 text-center">
-                            No hay archivos cargados.
+                        <td colspan="2" class="text-muted py-4 text-center">
+                            No hay archivos que coincidan con el filtro.
                         </td>
                     </tr>
                 }
                 else
                 {
-                    var grouped = files
+                    var grouped = FilteredFiles
                     .OrderBy(f => GetFolder(f.RelativePath))
                     .ThenBy(f => f.OriginalName)
                     .GroupBy(f => GetFolder(f.RelativePath))
                     .ToList();
 
-                <tbody>
-                    @if (files.Count == 0)
+                    @foreach (var group in grouped)
                     {
-                        <tr>
-                            <td colspan="2" class="text-muted py-4 text-center">
-                                No hay archivos cargados.
+                        <!-- Header de carpeta ocupa TODA la fila (Nombre + Acciones) -->
+                        <tr class="folder-row folder-click" @onclick="() => ToggleFolder(group.Key)" style="cursor:pointer;">
+                            <td colspan="2" class="fw-bold">
+                                <div class="d-flex align-items-center gap-2">
+                                    <span>@(IsOpen(group.Key) ? "📂" : "📁")</span>
+                                    <span>@group.Key</span>
+
+                                    <span class="ms-auto text-muted small">
+                                        @(IsOpen(group.Key) ? "Ocultar" : "Mostrar") (@group.Count())
+                                    </span>
+                                </div>
                             </td>
                         </tr>
-                    }
-                    else
-                    {
-                        @foreach (var group in grouped)
-                        {
-                            <!-- Fila separador -->
-                            <tr class="folder-row">
-                                <td colspan="2" class="fw-bold">
-                                    📁 @group.Key
-                                </td>
-                            </tr>
 
+                        @if (IsOpen(group.Key))
+                        {
                             @foreach (var f in group)
                             {
                                 <tr>
@@ -75,19 +81,26 @@
 
                                     <td class="text-end d-flex gap-2 justify-content-end">
                                         <button class="btn btn-outline-secondary btn-sm"
+                                                @onclick:stopPropagation="true"
                                                 @onclick="() => ViewPdf(f.Id)"
-                                                disabled="@isBusy">
+                                                disabled="@isBusy"
+                                                title="Ver">
                                             👁
                                         </button>
+
                                         <button class="btn btn-outline-primary btn-sm"
+                                                @onclick:stopPropagation="true"
                                                 @onclick="() => Download(f.Id)"
-                                                disabled="@isBusy">
+                                                disabled="@isBusy"
+                                                title="Descargar">
                                             ⬇
                                         </button>
+
                                         <button class="btn btn-outline-danger btn-sm"
+                                                @onclick:stopPropagation="true"
                                                 @onclick="() => DeleteFile(f.Id)"
                                                 disabled="@isBusy"
-                                                title="Eliminar archivo">
+                                                title="Eliminar">
                                             🗑
                                         </button>
                                     </td>
@@ -95,13 +108,12 @@
                             }
                         }
                     }
-                </tbody>
-
                 }
             </tbody>
         </table>
     </div>
 </div>
+
 @if (showUploadModal)
 {
     <div class="modal-backdrop fade show"></div>
@@ -111,7 +123,7 @@
             <div class="modal-content">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Subir archivo</h5>
+                    <h5 class="modal-title">Subir archivo(s)</h5>
                     <button type="button" class="btn-close" @onclick="CloseUploadModal" aria-label="Close"></button>
                 </div>
 
@@ -121,16 +133,31 @@
                             <label class="form-label fw-bold">Carpeta destino</label>
                             <input class="form-control" placeholder="Ej: Manuales, Imagenes, PDF" @bind="folder" />
                         </div>
+
                         <div class="col-12">
-                            <label class="form-label fw-bold">Archivo</label>
+                            <label class="form-label fw-bold">Archivos (PDF)</label>
 
                             <div class="d-flex align-items-center gap-3 flex-wrap">
                                 <label class="col-12 btn btn-outline-primary d-flex align-items-center gap-2 mb-0">
                                     <span>📁</span>
-                                    <span>@(_file?.Name ?? "Seleccionar archivo")</span>
-                                    <InputFile OnChange="OnFileSelected" accept=".pdf,application/pdf" hidden />
+                                    <span>@FilesSelectedText</span>
+                                    <InputFile OnChange="OnFilesSelected" multiple accept=".pdf,application/pdf" hidden />
                                 </label>
                             </div>
+
+                            @if (_files.Count > 0)
+                            {
+                                <div class="mt-2 small text-muted">
+                                    @foreach (var f in _files.Take(6))
+                                    {
+                                        <div>• @f.Name</div>
+                                    }
+                                    @if (_files.Count > 6)
+                                    {
+                                        <div>… y @(_files.Count - 6) más</div>
+                                    }
+                                </div>
+                            }
                         </div>
                     </div>
                 </div>
@@ -139,17 +166,18 @@
                     <button class="btn btn-outline-secondary" @onclick="CloseUploadModal" disabled="@isBusy">
                         Cancelar
                     </button>
-                    <button class="btn btn-success" @onclick="UploadFromModal" disabled="@(_file is null || isBusy)">
+
+                    <button class="btn btn-success" @onclick="UploadFromModal" disabled="@(_files.Count == 0 || isBusy)">
                         @if (isBusy)
                         {
                             <span class="spinner-border spinner-border-sm" aria-hidden="true"></span>
                             <span class="ms-2">Guardando...</span>
-                         }
-                         @if(!isBusy)
-                        {
-                            <span>Subir archivo</span>
                         }
-                        </button>
+                        else
+                        {
+                            <span>Subir archivo(s)</span>
+                        }
+                    </button>
                 </div>
 
             </div>
@@ -157,88 +185,174 @@
     </div>
 }
 
+<style>
+    .folder-row td {
+        background: #f5f7fa;
+        border-top: 2px solid #dee2e6;
+    }
+
+    .folder-click:hover td {
+        background: #eef3ff;
+    }
+</style>
+
 @code {
-    private InputFile? fileInput;
     public bool isBusy = false;
+
     private string? folder = "Manual";
-    private IBrowserFile? _file;
+
+    // filtro
+    private string search = "";
 
     private List<HandbookDto> files = new();
+
+    // multi archivo
+    private List<IBrowserFile> _files = new();
+    private string FilesSelectedText =>
+        _files.Count == 0 ? "Seleccionar archivos" :
+        _files.Count == 1 ? _files[0].Name :
+        $"{_files.Count} archivos seleccionados";
+
+    private bool showUploadModal;
+
+    // accordion: iniciar compacto (todo cerrado)
+    private HashSet<string> _openFolders = new(StringComparer.OrdinalIgnoreCase);
+
+    private IReadOnlyList<HandbookDto> FilteredFiles
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(search))
+                return files;
+
+            var s = search.Trim();
+
+            return files.Where(f =>
+            {
+                var name = f.OriginalName ?? "";
+                var folderName = GetFolder(f.RelativePath);
+                return name.Contains(s, StringComparison.OrdinalIgnoreCase)
+                       || folderName.Contains(s, StringComparison.OrdinalIgnoreCase);
+            }).ToList();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         await Load();
+        // Compactado al cargar: no abrimos nada por defecto
+        _openFolders.Clear();
     }
 
     private async Task Load()
     {
         try
         {
-
             files = (await HandbookApi.GetAsync()).ToList();
+
             if (files.Count == 0)
                 ToastService.ShowInfo("No hay archivos cargados.");
 
+            // mantener compacto al recargar:
+            // no abrimos carpetas automáticamente
         }
         catch (Exception ex)
         {
-            await FileLogger.ErrorAsync($"❌ Error al cargar=>"+ ex.Message);
+            await FileLogger.ErrorAsync($"❌ Error al cargar=> {ex.Message}");
             ToastService.ShowError("❌ Error al cargar");
         }
     }
 
-    private void OnFileSelected(InputFileChangeEventArgs e)
+    // Toggle normal (varias abiertas)
+    private void ToggleFolder(string folderName)
     {
-        var file = e.File;
+        if (_openFolders.Contains(folderName))
+            _openFolders.Remove(folderName);
+        else
+            _openFolders.Add(folderName);
+    }
 
-        // Validación por ContentType
-        var isPdf = string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+    private bool IsOpen(string folderName) => _openFolders.Contains(folderName);
 
-        // Validación por extensión (respaldo)
-        var hasPdfExt = Path.GetExtension(file.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
+    private void OpenUploadModal()
+    {
+        showUploadModal = true;
+    }
 
-        if (!isPdf && !hasPdfExt)
+    private void CloseUploadModal()
+    {
+        showUploadModal = false;
+        _files.Clear();
+    }
+
+    private void OnFilesSelected(InputFileChangeEventArgs e)
+    {
+        _files.Clear();
+
+        // Aceptar hasta 26 archivos
+        foreach (var file in e.GetMultipleFiles(26))
         {
-            _file = null;
-            ToastService.ShowError("Solo se permiten archivos PDF (.pdf).");
-            FileLogger.ErrorAsync($"Archivo rechazado (no PDF) | Name={file.Name} | Type={file.ContentType}");
-            return;
+            var isPdf = string.Equals(file.ContentType, "application/pdf", StringComparison.OrdinalIgnoreCase);
+            var hasPdfExt = Path.GetExtension(file.Name).Equals(".pdf", StringComparison.OrdinalIgnoreCase);
+
+            if (!isPdf && !hasPdfExt)
+            {
+                ToastService.ShowError($"Solo PDF: {file.Name}");
+                _ = FileLogger.ErrorAsync($"Archivo rechazado (no PDF) | Name={file.Name} | Type={file.ContentType}");
+                continue;
+            }
+
+            _files.Add(file);
         }
 
-        _file = file;
-        FileLogger.InfoAsync($"PDF seleccionado | {_file.Name} | Type={_file.ContentType}");
-        ToastService.ShowInfo($"PDF seleccionado: {_file.Name}");
+        if (_files.Count > 0)
+        {
+            _ = FileLogger.InfoAsync($"PDFs seleccionados: {_files.Count}");
+            ToastService.ShowInfo($"{_files.Count} PDF(s) seleccionado(s).");
+        }
     }
 
     private async Task Upload()
     {
-        isBusy = true;
+        if (_files.Count == 0 || string.IsNullOrWhiteSpace(folder))
+        {
+            ToastService.ShowError("Selecciona carpeta y al menos un archivo.");
+            return;
+        }
 
-        if (_file is null || string.IsNullOrWhiteSpace(folder)) return;
+        isBusy = true;
 
         try
         {
-            isBusy = true;
-            FileLogger.InfoAsync($"⏳  Subiendo archivo... Folder:{folder} | File:{_file}");
+            await FileLogger.InfoAsync($"⏳ Subiendo {_files.Count} archivo(s)... Folder:{folder}");
 
-            await using var stream = _file.OpenReadStream(50_000_000);
+            foreach (var f in _files)
+            {
+                await using var stream = f.OpenReadStream(50_000_000);
+                await HandbookApi.UploadAsync(stream, f.Name, f.ContentType, folder);
+                await FileLogger.InfoAsync($"✅ Subido: {f.Name}");
+            }
 
-            await HandbookApi.UploadAsync( stream, _file.Name, _file.ContentType, folder);
-            await FileLogger.InfoAsync($"✅ Archivo cargado correctamente.");
-            ToastService.ShowSuccess($"✅ Archivo cargado correctamente.");
-            _file = null;
+            ToastService.ShowSuccess("✅ Archivos cargados correctamente.");
+            _files.Clear();
 
             await Load();
         }
         catch (Exception ex)
         {
-            await FileLogger.ErrorAsync($"❌ Error al subir: " + ex.Message);
-            ToastService.ShowError($"❌ Error al subir,intente nuevamente");
+            await FileLogger.ErrorAsync($"❌ Error al subir: {ex.Message}");
+            ToastService.ShowError("❌ Error al subir, intente nuevamente");
         }
         finally
         {
             isBusy = false;
         }
+    }
+
+    private async Task UploadFromModal()
+    {
+        await Upload();
+        if (!isBusy) showUploadModal = false;
     }
 
     private async Task Download(long id)
@@ -247,14 +361,14 @@
         {
             isBusy = true;
             await FileLogger.InfoAsync($"Descargando...| id:{id}");
-            ToastService.ShowInfo($"Descargando..");
+            ToastService.ShowInfo("Descargando..");
 
             var bytes = await HandbookApi.DownloadAsync(id);
 
             var path = Path.Combine(FileSystem.AppDataDirectory, $"handbook_{id}");
             await File.WriteAllBytesAsync(path, bytes);
 
-            await FileLogger.InfoAsync($"Descargando...| id:{id}");
+            await FileLogger.InfoAsync($"✅ Descargado | id:{id}");
             ToastService.ShowSuccess($"✅ Guardado en: {path}");
         }
         catch (Exception ex)
@@ -265,41 +379,15 @@
         finally
         {
             isBusy = false;
-            Load();
+            _ = Load();
         }
     }
 
-    private static string FormatBytes(long bytes)
-    {
-        if (bytes < 1024) return $"{bytes} B";
-        if (bytes < 1024 * 1024) return $"{bytes / 1024.0:0.0} KB";
-        return $"{bytes / 1024.0 / 1024.0:0.0} MB";
-    }
-
-    private bool showUploadModal;
-
-    private void OpenUploadModal()
-    {
-        showUploadModal = true;
-    }
-
-    private void CloseUploadModal()
-    {
-        showUploadModal = false;
-    }
-
-    private async Task UploadFromModal()
-    {
-        await Upload();            // reutiliza tu método actual
-        if (!isBusy)               // por si tarda, evita cerrar antes
-            showUploadModal = false;
-    }
     private async Task ViewPdf(long id)
     {
         try
         {
             isBusy = true;
-
             var uri = HandbookApi.GetViewPdfUri(id);
             await Launcher.Default.OpenAsync(uri);
         }
@@ -313,21 +401,7 @@
             isBusy = false;
         }
     }
-    private static string GetFolder(string? relativePath)
-    {
-        if (string.IsNullOrWhiteSpace(relativePath))
-            return "Sin carpeta";
 
-        var parts = relativePath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
-
-        var storageIndex = Array.FindIndex(parts,
-            p => p.Equals("Storage", StringComparison.OrdinalIgnoreCase));
-
-        if (storageIndex >= 0 && storageIndex + 1 < parts.Length)
-            return parts[storageIndex + 1];  // <-- "Manual"
-
-        return "Sin carpeta";
-    }
     private async Task DeleteFile(long id)
     {
         if (isBusy) return;
@@ -351,8 +425,23 @@
         finally
         {
             isBusy = false;
-            Load();
+            _ = Load();
         }
     }
 
+    private static string GetFolder(string? relativePath)
+    {
+        if (string.IsNullOrWhiteSpace(relativePath))
+            return "Sin carpeta";
+
+        var parts = relativePath.Split(new[] { '/', '\\' }, StringSplitOptions.RemoveEmptyEntries);
+
+        var storageIndex = Array.FindIndex(parts,
+            p => p.Equals("Storage", StringComparison.OrdinalIgnoreCase));
+
+        if (storageIndex >= 0 && storageIndex + 1 < parts.Length)
+            return parts[storageIndex + 1];
+
+        return "Sin carpeta";
+    }
 }
