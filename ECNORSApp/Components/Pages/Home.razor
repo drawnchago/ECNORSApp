@@ -9,9 +9,9 @@
 @inject ECNORSApp.Services.IToastService ToastService
 @inject ECNORSApp.Services.IFileLoggerService FileLogger
 
-<div class="d-flex justify-content-end">
+@* <div class="d-flex justify-content-end">
     <button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">Exportar Log</button>
-</div>
+</div> *@
 
 <h4>Estación</h4>
 <div class="d-flex align-items-center gap-2 mt-2">
@@ -75,6 +75,15 @@
     {
         <hr class="my-3" />
 
+        <div class="d-flex align-items-end gap-2 flex-wrap mb-3">
+            <div>
+                <h5>Selecciona el dia</h5>
+                <input type="date"class="form-control"style="width: 380px;"@bind-value="selectedDay"@bind-value:format="yyyy-MM-dd"disabled="@isLoadingTables" />
+            </div>
+        </div>
+
+        <button class="btn btn-outline-primary"style="width: 380px; margin-bottom:5%;"@onclick="ReloadByDayAsync"disabled="@isLoadingTables"> Buscar </button>
+
         @if (isLoadingTables)
         {
             <div>Cargando Bitácora y Transacciones...</div>
@@ -85,12 +94,13 @@
         }
         else
         {
-            <h5>Bitácora (Top 7)</h5>
+            <h5>Reportes</h5>
             <div class="cardish mt-3">
                 <div class="table-title header-bitacora">
                     <h5 class="m-0">Bitácora</h5>
-                    <span class="badge-soft">Top 7 • últimas 24h</span>
+                    <span class="badge-soft">Top 20 • día seleccionado</span>
                 </div>
+
                 <div class="table-shell">
                     <table class="nice-table">
                         <thead>
@@ -113,7 +123,7 @@
                             @if (binnacle.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="11" class="muted">Sin registros para este dispensario.</td>
+                                    <td colspan="11" class="muted">Sin registros para este dispensario en ese día.</td>
                                 </tr>
                             }
                             else
@@ -152,8 +162,6 @@
                     </table>
                 </div>
             </div>
-
-            <h5 class="mt-4">Transacciones (Top 7)</h5>
             <div class="cardish mt-4 card-comfy">
                 <div class="table-title header-transacciones title-comfy">
                     <h5 class="m-0">Transacciones</h5>
@@ -204,6 +212,7 @@
     }
 }
 
+@* ========= MODALES (IGUAL QUE YA LOS TENÍAS) ========= *@
 @if (showBinnacleModal)
 {
     <div class="modal-backdrop blue-backdrop" @onclick="() => CloseModalAsync(true)"></div>
@@ -472,6 +481,11 @@
     private bool _expandBinnacle = false;
     private bool _expandCloseLoad = true;
     private bool _expandSequence = false;
+    private DateTime selectedDay = DateTime.Today;
+
+    // ===== NUEVO: selector de día =====
+    private string selectedDayText = DateTime.Today.ToString("yyyy-MM-dd");
+    private DateTime SelectedDay => DateTime.ParseExact(selectedDayText, "yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     protected override Task OnInitializedAsync()
     {
@@ -484,6 +498,11 @@
     private void OnExpandCollapseClick() => _expandBinnacle = !_expandBinnacle;
     private void OnExpandCollapse2Click() => _expandCloseLoad = !_expandCloseLoad;
     private void OnExpandCollapse3Click() => _expandSequence = !_expandSequence;
+
+    private async Task ReloadByDayAsync()
+    {
+        await LoadAsync();
+    }
 
     private async Task ConnectAsync()
     {
@@ -810,7 +829,10 @@
         {
             var dispId = selectedDispensaryId.Value;
 
-            var bTask = CloseLoadApi.GetBinnacleTopAsync(selectedName, dispId);
+            // BITÁCORA por DÍA (Top 20)
+            var bTask = CloseLoadApi.GetBinnacleTopByDayAsync(selectedName, dispId, selectedDay);
+
+            // Transacciones como ya lo tenías
             var tTask = CloseLoadApi.GetTransactionsTopAsync(selectedName, dispId);
 
             await Task.WhenAll(bTask, tTask);

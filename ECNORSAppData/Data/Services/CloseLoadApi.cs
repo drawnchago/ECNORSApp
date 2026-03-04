@@ -1,5 +1,6 @@
 ﻿using ECNORSAppData.Data.DTO;
 using Microsoft.Data.SqlClient;
+using System.Globalization;
 using System.Net.Http.Json;
 using static ECNORSApp.Services.CloseLoadApi;
 
@@ -13,7 +14,7 @@ public sealed class CloseLoadApi : ICloseLoadApi
     {
         Task<DbInfoResp<string>?> GetDbInfoAsync(string station, CancellationToken ct = default);
         Task<IReadOnlyList<DispensaryDto>> GetDispensariosAsync(string station, CancellationToken ct = default);
-        Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(string station,int dispensaryId,CancellationToken ct = default);
+        Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopByDayAsync(string station, int dispensaryId, DateTime selectedDay, CancellationToken ct = default);
         Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station, int dispensaryId, CancellationToken ct = default);
         Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default);
         Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
@@ -42,9 +43,12 @@ public sealed class CloseLoadApi : ICloseLoadApi
         return (IReadOnlyList<DispensaryDto>?)wrapper?.Data
                ?? Array.Empty<DispensaryDto>();
     }
-    public async Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopAsync(string station,int dispensaryId,CancellationToken ct = default)
+    public async Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopByDayAsync(
+     string station, int dispensaryId, DateTime selectedDay, CancellationToken ct = default)
     {
-        var url = $"api/binnacle/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}";
+        var dayStr = selectedDay.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var url = $"api/binnacle/top?dispensaryId={dispensaryId}&station={Uri.EscapeDataString(station)}&selectedDay={Uri.EscapeDataString(dayStr)}";
 
         using var resp = await _http.GetAsync(url, ct);
 
@@ -60,6 +64,7 @@ public sealed class CloseLoadApi : ICloseLoadApi
 
         return payload.Data;
     }
+
 
     public async Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station,int dispensaryId,CancellationToken ct = default)
     {
