@@ -38,10 +38,8 @@ public sealed class CloseLoadApi : ICloseLoadApi
         using var resp = await _http.GetAsync(url, ct);
         resp.EnsureSuccessStatusCode();
 
-        var wrapper = await resp.Content.ReadFromJsonAsync<DbInfoResp<List<DispensaryDto>>>(cancellationToken: ct);
-
-        return (IReadOnlyList<DispensaryDto>?)wrapper?.Data
-               ?? Array.Empty<DispensaryDto>();
+        var wrapper = await resp.Content.ReadFromJsonAsync<DbInfoResp<List<DispensaryDto>>>(cancellationToken: ct); 
+        return (IReadOnlyList<DispensaryDto>?)wrapper?.Data  ?? Array.Empty<DispensaryDto>();
     }
     public async Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopByDayAsync(
      string station, int dispensaryId, DateTime selectedDay, CancellationToken ct = default)

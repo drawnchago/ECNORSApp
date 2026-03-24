@@ -1,0 +1,141 @@
+﻿@page "/dispensary"
+@using MudBlazor
+@using ECNORSAppData.Data.Config
+@using ECNORSAppData.Data.DTO
+@using ECNORSApp.Services
+
+@inject IToastService ToastService
+@inject IFileLoggerService FileLogger
+@inject IConnectionSelector ConnectionSelector
+@inject CloseLoadApi CloseLoadApi
+<div class="dispensary-page">
+    
+    <h3>Dispensarios</h3>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadDispensariesAsync" Disabled="@isLoadingDispensaries">Cargar nuevamente</MudButton>
+    <MudSpacer />
+
+    @if (isLoadingDispensaries)
+    {
+        <MudPaper Class="pa-4 mt-4">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+            <MudText Class="mt-2">Cargando dispensarios...</MudText>
+        </MudPaper>
+    }
+    else if (!string.IsNullOrWhiteSpace(dispensariesError))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4"> @dispensariesError  </MudAlert>
+    }
+    else if (dispensariesByStation.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mt-4"> No se encontraron dispensarios.  </MudAlert>
+    }
+    else
+    {
+    <MudExpansionPanels MultiExpansion="true" Class="station-panels mt-4">
+        @foreach (var group in dispensariesByStation.OrderBy(x => x.Key))
+        {
+            <MudExpansionPanel Class="station-panel">
+                <TitleContent>
+                    <div class="station-header">
+                        <div class="station-header-left">
+                            <MudIcon Icon="@Icons.Material.Filled.LocalGasStation" Class="station-icon" />
+                            <div>
+                                <div class="station-title">@group.Key</div>
+                                <div class="station-subtitle">Dispensarios registrados: @group.Value.Count</div>
+                            </div>
+                        </div> 
+                    </div>
+                </TitleContent>
+
+                <ChildContent>
+                    <div class="station-body">
+                        <MudTable T="DispensaryDto"
+                                  Items="@group.Value"
+                                  Dense="true"
+                                  Hover="true"
+                                  Bordered="true"
+                                  Striped="true"
+                                  Breakpoint="Breakpoint.Sm"
+                                  Class="station-table">
+
+                            <HeaderContent>
+                                <MudTh>Dispensario</MudTh> 
+                                <MudTh>Generado</MudTh>
+                                <MudTh>Sirviendo</MudTh>
+                                <MudTh>Despacho</MudTh>
+                            </HeaderContent>
+
+                            <RowTemplate> 
+                                <MudTd ColSpan="8"> <div class="dispensary-title"> Dispensario #@context.DispensaryId </div> </MudTd>
+                                <MudTd DataLabel="Generado">
+                                    <MudChip T="string" Color="@(context.Generado ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Small">@(context.Generado ? "Sí" : "No")</MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Sirviendo">
+                                    <MudChip T="string" Color="@(context.Sirviendo ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Small">@(context.Sirviendo ? "Sí" : "No")</MudChip>
+                                </MudTd>
+                                <MudTd DataLabel="Despacho">
+                                    <MudChip T="string" Color="@(context.Despacho ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Small">@(context.Despacho ? "Sí" : "No") </MudChip>
+                                </MudTd> 
+                            </RowTemplate>
+                        </MudTable>
+                    </div>
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+    }
+</div>
+
+@code {
+    private bool isLoadingDispensaries = false;
+    private string? dispensariesError = null;
+
+    private Dictionary<string, List<DispensaryDto>> dispensariesByStation = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDispensariesAsync();
+    } 
+    private async Task LoadDispensariesAsync()
+    {
+        isLoadingDispensaries = true;
+        dispensariesError = null;
+
+        try
+        {
+            dispensariesByStation.Clear(); 
+            var stations = ConnectionSelector.GetConnections() .Where(x => !x.name.Equals("Laboratorio", StringComparison.OrdinalIgnoreCase)).ToList();
+
+            foreach (var station in stations)
+            {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(station.name))
+                        continue;
+
+                    var list = await CloseLoadApi.GetDispensariosAsync(station.name);
+
+                    foreach (var item in list) { item.StationName = station.name; }
+
+                    dispensariesByStation[station.name] = list.ToList();
+                }
+                catch (Exception exConn)
+                {
+                    await FileLogger.ErrorAsync($"Error en modulo Dispensarios al obtener dispensarios de {station.name}: {exConn}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            dispensariesError = ex.Message;
+            await FileLogger.ErrorAsync("Error modulo dispensarios en LoadDispensariesAsync => " + ex);
+            ToastService.ShowError(ex.Message, "Error en modulo Dispensarios al obtener dispensarios ");
+        }
+        finally
+        {
+            isLoadingDispensaries = false;
+            StateHasChanged();
+        }
+    }
+}

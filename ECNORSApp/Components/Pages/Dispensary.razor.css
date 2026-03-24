@@ -1,0 +1,112 @@
+﻿.dispensary-title {
+    width: 100%;
+    text-align: center;
+    font-weight: 700;
+    font-size: 0.75rem;
+    padding: 8px;
+    background: linear-gradient(90deg, #1976d2, #42a5f5);
+    color: white;
+    border-radius: 8px;
+}
+
+.station-panels {
+    gap: 14px;
+}
+
+.station-panel {
+    border-radius: 16px !important;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,.08);
+    box-shadow: 0 6px 18px rgba(0,0,0,.08);
+    background: linear-gradient(180deg, rgba(255,255,255,1) 0%, rgba(248,250,252,1) 100%);
+    margin-bottom: 14px;
+}
+
+    .station-panel .mud-expand-panel-header {
+        padding: 16px 18px;
+        background: linear-gradient(90deg, rgba(25,118,210,.08) 0%, rgba(25,118,210,.02) 100%);
+        border-bottom: 1px solid rgba(0,0,0,.06);
+    }
+
+    .station-panel .mud-expand-panel-content {
+        background-color: #fff;
+    }
+
+.station-header {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.station-header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.station-icon {
+    font-size: 30px;
+    color: #1976d2;
+    background: rgba(25,118,210,.10);
+    border-radius: 12px;
+    padding: 8px;
+}
+.dispensary-page {
+    min-height: 100vh;
+    padding: 12px 12px 120px 12px;
+    box-sizing: border-box;
+}
+.station-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #1f2937;
+    line-height: 1.2;
+}
+
+.station-subtitle {
+    font-size: .82rem;
+    color: #6b7280;
+    margin-top: 2px;
+}
+
+.station-body {
+    padding: 14px;
+}
+
+.station-table {
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+    .station-table .mud-table-head {
+        background-color: #f3f6fa;
+    }
+
+    .station-table .mud-table-cell {
+        vertical-align: middle;
+    }
+
+@media (max-width: 768px) {
+    .station-panel .mud-expand-panel-header {
+        padding: 14px;
+    }
+
+    .station-header {
+        align-items: flex-start;
+        flex-direction: column;
+    }
+
+    .station-header-left {
+        width: 100%;
+    }
+
+    .station-body {
+        padding: 10px;
+    }
+
+    .station-title {
+        font-size: .95rem;
+    }
+}
