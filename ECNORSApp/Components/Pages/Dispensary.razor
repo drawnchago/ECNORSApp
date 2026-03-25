@@ -50,14 +50,7 @@
 
                 <ChildContent>
                     <div class="station-body">
-                        <MudTable T="DispensaryDto"
-                                  Items="@group.Value"
-                                  Dense="true"
-                                  Hover="true"
-                                  Bordered="true"
-                                  Striped="true"
-                                  Breakpoint="Breakpoint.Sm"
-                                  Class="station-table">
+                        <MudTable T="DispensaryDto" Items="@group.Value" Dense="true" Hover="true" Bordered="true" Striped="true" Breakpoint="Breakpoint.Sm" Class="station-table">
 
                             <HeaderContent>
                                 <MudTh>Dispensario</MudTh> 
@@ -67,7 +60,7 @@
                             </HeaderContent>
 
                             <RowTemplate> 
-                                <MudTd ColSpan="8"> <div class="dispensary-title"> Dispensario #@context.DispensaryId </div> </MudTd>
+                                    <MudTd><div class="dispensary-title">Dispensario #@context.DispensaryId</div>  </MudTd>
                                 <MudTd DataLabel="Generado">
                                     <MudChip T="string" Color="@(context.Generado ? Color.Success : Color.Error)" Variant="Variant.Filled" Size="Size.Small">@(context.Generado ? "Sí" : "No")</MudChip>
                                 </MudTd>

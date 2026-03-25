@@ -66,7 +66,7 @@
             <option value="">-- Selecciona dispensario --</option>
             @foreach (var d in dispensaries)
             {
-                <option value="@d.DispensaryId">@d.DisplayName</option>
+                <option value="@d.DispensaryId">@(string.IsNullOrWhiteSpace(d.DisplayName) ? $"Dispensario # {d.DispensaryId}" : d.DisplayName)</option>
             }
         </select>
     }

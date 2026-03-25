@@ -1,7 +1,9 @@
 ﻿using ECNORSAppData.Data.DTO;
 using Microsoft.Data.SqlClient;
 using System.Globalization;
-using System.Net.Http.Json;
+using System.Net.Http.Json;using System.Text.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using static ECNORSApp.Services.CloseLoadApi;
 
 namespace ECNORSApp.Services;
@@ -38,8 +40,15 @@ public sealed class CloseLoadApi : ICloseLoadApi
         using var resp = await _http.GetAsync(url, ct);
         resp.EnsureSuccessStatusCode();
 
-        var wrapper = await resp.Content.ReadFromJsonAsync<DbInfoResp<List<DispensaryDto>>>(cancellationToken: ct); 
-        return (IReadOnlyList<DispensaryDto>?)wrapper?.Data  ?? Array.Empty<DispensaryDto>();
+        var options = new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        };
+
+        var wrapper = await resp.Content.ReadFromJsonAsync<DbInfoResp<List<DispensaryDto>>>(options, ct);
+
+        var data = wrapper?.Data ?? new List<DispensaryDto>();
+        return data;
     }
     public async Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopByDayAsync(
      string station, int dispensaryId, DateTime selectedDay, CancellationToken ct = default)
@@ -173,11 +182,16 @@ public sealed class CloseLoadApi : ICloseLoadApi
 
         return TransactionResp<bool>.Ok(true, ok.Message ?? "Cierre forzado ejecutado correctamente.");
     }
-
-    public sealed class DbInfoResp<T>
+     
+    public class DbInfoResp<T>
     {
+        [JsonPropertyName("success")]
         public bool Success { get; set; }
+
+        [JsonPropertyName("message")]
         public string? Message { get; set; }
+
+        [JsonPropertyName("data")]
         public T? Data { get; set; }
     }
 }
