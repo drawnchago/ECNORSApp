@@ -1,0 +1,234 @@
+﻿@page "/dispensary2"
+@using MudBlazor
+@using ECNORSAppData.Data.Config
+@using ECNORSAppData.Data.DTO
+@using ECNORSApp.Services
+@using Microsoft.AspNetCore.Components.Web
+
+@inject IToastService ToastService
+@inject IFileLoggerService FileLogger
+@inject IConnectionSelector ConnectionSelector
+@inject CloseLoadApi CloseLoadApi
+
+<div class="page-header">
+    <h3>Dispensarios</h3>
+</div>
+
+<div class="dispensary-page" @ontouchstart="HandleTouchStart" @ontouchend="HandleTouchEnd">
+@if (isLoadingDispensaries)
+{
+        <div class="loading-container">
+            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+            <MudText Class="mt-2">Cargando estatus...</MudText>
+        </div>
+}
+else if (!string.IsNullOrWhiteSpace(dispensariesError))
+{
+    <MudAlert Severity="Severity.Error" Class="mt-4">
+        @dispensariesError
+    </MudAlert>
+}
+else if (dispensariesByStation.Count == 0)
+{
+    <MudAlert Severity="Severity.Info" Class="mt-4">
+        No se encontraron dispensarios.
+    </MudAlert>
+}
+else
+{
+
+    @* <div class="d-flex gap-2 mb-3">
+        <MudButton Variant="Variant.Outlined" OnClick="PrevTab">Anterior</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextTab">Siguiente</MudButton>
+    </div> *@
+
+    <MudTabs @bind-ActivePanelIndex="selectedTabIndex"
+             Rounded="true"
+             Border="true"
+             Elevation="2"
+             Centered="true"
+             ScrollButtons="false"
+             Class="station-tabs"
+             PanelClass="station-tab-panel">
+
+        @foreach (var group in dispensariesByStation.OrderBy(x => x.Key))
+        {
+                <MudTabPanel Text="@group.Key">
+                    <TabContent>
+                        <MudIcon Icon="@Icons.Material.Filled.LocalGasStation" />
+                        <span class="ml-1">@group.Key</span>
+                    </TabContent>
+
+                    <ChildContent>
+                        <div class="station-body">
+
+                            <div class="station-summary mt-2 d-flex justify-space-between align-center">
+                                <div>
+                                    <div class="station-title">@group.Key</div>
+                                    <div class="station-subtitle">
+                                        Dispensarios registrados: @group.Value.Count
+                                    </div>
+                                </div>
+
+                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="LoadDispensariesAsync"> Actualizar </MudButton>
+                            </div>
+
+                            <div class="table-wrapper">
+                                <table class="custom-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Dispensario</th>
+                                            <th>Generado</th>
+                                            <th>Sirviendo</th>
+                                            <th>Despacho</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var item in group.Value.OrderBy(x => x.DispensaryId))
+                                        {
+                                            <tr>
+                                                <td>#@item.DispensaryId</td>
+                                                <td>
+                                                    <span class="badge @(item.Generado ? "ok" : "fail")">
+                                                        @(item.Generado ? "Sí" : "No")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge @(item.Sirviendo ? "ok" : "fail")">
+                                                        @(item.Sirviendo ? "Sí" : "No")
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span class="badge @(item.Despacho ? "ok" : "fail")">
+                                                        @(item.Despacho ? "Sí" : "No")
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+
+                        </div>
+                    </ChildContent>
+                </MudTabPanel>
+        }
+    </MudTabs>
+}
+
+@* <style>
+    .station-tabs .mud-tabs-scroll-button,
+    .station-tabs .mud-tab-prev-button,
+    .station-tabs .mud-tab-next-button,
+    .station-tabs button[aria-label*="scroll"],
+    .station-tabs button[aria-label*="Scroll"] {
+        display: none !important;
+        width: 0 !important;
+        min-width: 0 !important;
+        padding: 0 !important;
+        margin: 0 !important;
+    }
+</style> *@
+</div>
+
+@code {
+    private int selectedTabIndex = 0;
+    private bool isLoadingDispensaries = false;
+    private string? dispensariesError = null;
+    private double touchEndX = 0;
+    private double touchStartX = 0;
+    private bool expandAll = false;
+
+    private Dictionary<string, List<DispensaryDto>> dispensariesByStation = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDispensariesAsync();
+    }
+    private void ToggleExpandAll()
+    {
+        expandAll = !expandAll;
+    }
+    private void HandleTouchStart(TouchEventArgs e)
+    {
+        touchStartX = e.Touches[0].ClientX;
+    }
+
+    private void HandleTouchEnd(TouchEventArgs e)
+    {
+        touchEndX = e.ChangedTouches[0].ClientX;
+
+        var diff = touchEndX - touchStartX;
+
+        if (Math.Abs(diff) < 50)
+            return;
+
+        if (diff < 0)
+            NextTab();
+        else
+            PrevTab();
+    }
+
+    private void NextTab()
+    {
+        if (dispensariesByStation.Count == 0)
+            return;
+
+        selectedTabIndex = (selectedTabIndex + 1) % dispensariesByStation.Count;
+    }
+
+    private void PrevTab()
+    {
+        if (dispensariesByStation.Count == 0)
+            return;
+
+        selectedTabIndex = (selectedTabIndex - 1 + dispensariesByStation.Count) % dispensariesByStation.Count;
+    }
+
+    private async Task LoadDispensariesAsync()
+    {
+        isLoadingDispensaries = true;
+        dispensariesError = null;
+
+        try
+        {
+            dispensariesByStation.Clear();
+            var stations = ConnectionSelector.GetConnections()
+                .Where(x => !x.name.Equals("Laboratorio", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            foreach (var station in stations)
+            {
+                try
+                {
+                    if (string.IsNullOrWhiteSpace(station.name))
+                        continue;
+
+                    var list = await CloseLoadApi.GetDispensariosAsync(station.name);
+
+                    foreach (var item in list)
+                    {
+                        item.StationName = station.name;
+                    }
+
+                    dispensariesByStation[station.name] = list.ToList();
+                }
+                catch (Exception exConn)
+                {
+                    await FileLogger.ErrorAsync($"Error en modulo Dispensarios al obtener dispensarios de {station.name}: {exConn}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            dispensariesError = ex.Message;
+            await FileLogger.ErrorAsync("Error modulo dispensarios en LoadDispensariesAsync => " + ex);
+            ToastService.ShowError(ex.Message, "Error en modulo Dispensarios al obtener dispensarios ");
+        }
+        finally
+        {
+            isLoadingDispensaries = false;
+            StateHasChanged();
+        }
+    }
+}
