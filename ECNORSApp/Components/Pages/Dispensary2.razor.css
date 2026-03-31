@@ -121,7 +121,12 @@
     color: white;
     font-size: 12px;
     text-align: center;
+    transition: transform 0.2s;
 }
+
+    .badge:hover {
+        transform: scale(1.05);
+    }
 
     .badge.ok {
         background-color: #2ecc71;
@@ -151,3 +156,82 @@
             padding: 8px 6px;
         }
 }
+/* DIV DE LEYENDA */
+.legend-table {
+    width: 100%;
+}
+
+.legend-table td {
+    width: 50%;              /* 👈 divide en 2 columnas reales */
+    padding: 6px 20px;       /* 👈 espacio horizontal real */
+    font-size: 13px;
+    vertical-align: middle;
+}
+
+.legend-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px 16px;
+    margin: 8px 0 10px 0;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: #f7f7f7;
+}
+
+.legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 110px;
+}
+
+.legend-code {
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.legend-bar {
+    display: grid;
+    grid-template-columns: repeat(2, max-content);
+    justify-content: center;
+    column-gap: 28px;
+    row-gap: 12px;
+    margin: 8px auto 10px auto;
+    padding: 10px 14px;
+    border-radius: 10px;
+    background: #f7f7f7;
+    width: fit-content;
+    max-width: 100%;
+}
+
+.legend-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 120px;
+}
+
+.legend-code {
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.1;
+}
+
+.legend-desc {
+    font-size: 10px;
+    color: #666;
+    line-height: 1.1;
+    margin-top: 2px;
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    margin-top: 4px;
+}
+
+    .dot.light {
+        border: 1px solid #bbb;
+    }

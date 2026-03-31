@@ -12,118 +12,93 @@
 
 <div class="page-header">
     <h3>Dispensarios</h3>
-</div>
-
+</div> 
 <div class="dispensary-page" @ontouchstart="HandleTouchStart" @ontouchend="HandleTouchEnd">
 @if (isLoadingDispensaries)
 {
-        <div class="loading-container">
-            <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
-            <MudText Class="mt-2">Cargando estatus...</MudText>
-        </div>
+    <div class="loading-container">
+        <MudProgressCircular Indeterminate="true" Color="Color.Primary" Size="Size.Large" />
+        <MudText Class="mt-2">Cargando estatus...</MudText>
+    </div>
 }
 else if (!string.IsNullOrWhiteSpace(dispensariesError))
 {
-    <MudAlert Severity="Severity.Error" Class="mt-4">
-        @dispensariesError
-    </MudAlert>
+    <MudAlert Severity="Severity.Error" Class="mt-4">@dispensariesError</MudAlert>
 }
-else if (dispensariesByStation.Count == 0)
+    else if (dispensariesByStationOrdered.Count == 0)
 {
-    <MudAlert Severity="Severity.Info" Class="mt-4">
-        No se encontraron dispensarios.
-    </MudAlert>
+    <MudAlert Severity="Severity.Info" Class="mt-4">No se encontraron dispensarios.</MudAlert>
 }
 else
 {
-
-    @* <div class="d-flex gap-2 mb-3">
-        <MudButton Variant="Variant.Outlined" OnClick="PrevTab">Anterior</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="NextTab">Siguiente</MudButton>
-    </div> *@
-
-    <MudTabs @bind-ActivePanelIndex="selectedTabIndex"
-             Rounded="true"
-             Border="true"
-             Elevation="2"
-             Centered="true"
-             ScrollButtons="false"
-             Class="station-tabs"
-             PanelClass="station-tab-panel">
-
-        @foreach (var group in dispensariesByStation.OrderBy(x => x.Key))
+    <MudTabs @bind-ActivePanelIndex="selectedTabIndex" Rounded="true" Border="true" Elevation="2" Centered="true" ScrollButtons="false" Class="station-tabs" PanelClass="station-tab-panel"> 
+        @foreach (var group in dispensariesByStationOrdered)
         {
-                <MudTabPanel Text="@group.Key">
-                    <TabContent>
-                        <MudIcon Icon="@Icons.Material.Filled.LocalGasStation" />
-                        <span class="ml-1">@group.Key</span>
-                    </TabContent>
+            <MudTabPanel Text="@group.Key">
+                <TabContent>
+                    <MudIcon Icon="@Icons.Material.Filled.LocalGasStation" />
+                    <span class="ml-1">@group.Key</span>
+                </TabContent>
 
-                    <ChildContent>
-                        <div class="station-body">
-
-                            <div class="station-summary mt-2 d-flex justify-space-between align-center">
-                                <div>
-                                    <div class="station-title">@group.Key</div>
-                                    <div class="station-subtitle">
-                                        Dispensarios registrados: @group.Value.Count
-                                    </div>
+                <ChildContent>
+                    <div class="station-body">
+                        <div class="station-summary mt-2 d-flex justify-space-between align-center">
+                            <div>
+                                <div class="station-title">@group.Key</div>
+                                <div class="station-subtitle">Dispensarios registrados: @group.Value.Count </div>
+                            </div> 
+                                <div class="d-flex align-center" style="gap:8px;">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Info" Color="Color.Primary" Size="Size.Small" OnClick="ToggleLegend" />
+                                    <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="LoadDispensariesAsync">Actualizar</MudButton>
                                 </div>
+                        </div>
 
-                                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="LoadDispensariesAsync"> Actualizar </MudButton>
+                        @if (openLegend)
+                        {
+                            <div class="legend-bar"> 
+                                    <div class="legend-title">Código de color:</div>
+                                    @foreach (var item in DispensaryStatusMap.Items.Values)
+                                    {
+                                        <div class="legend-item">
+                                            <span class="dot @(item.Id == 2 ? "light" : "")" style="background:@item.Color"></span>
+                                            <div>
+                                                <div class="legend-code">@item.Code</div>
+                                                <div class="legend-desc">@item.Description</div>
+                                            </div>
+                                        </div>
+                                    }  
                             </div>
-
-                            <div class="table-wrapper">
-                                <table class="custom-table">
-                                    <thead>
-                                        <tr>
-                                            <th>#</th>
-                                            <th>Estado</th>
-                                            <th>Generado</th>
-                                            <th>Sirviendo</th>
-                                            <th>Despacho</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @foreach (var item in group.Value.OrderBy(x => x.DispensaryId))
+                        }
+                        <div class="table-wrapper">
+                            <table class="custom-table">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Estatus</th>
+                                        <th>Generado</th>
+                                        <th>Sirviendo</th>
+                                        <th>Despacho</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                        @foreach (var item in group.Value)
                                         {
+                                            var status = DispensaryStatusMap.Get(item.Estatus);
+
                                             <tr>
-                                                <td>#@item.DispensaryId</td> 
-                                                <td>
-                                                    <span>
-                                                        @GetStatusText(item.Estatus ?? -1)
-                                                    </span>
-                                                </td>
-                                                @* <MudChip T="string"
-                                                         Color="@(GetStatusColor(item.Estatus))"
-                                                         Class="px-2"
-                                                         Style="white-space: nowrap;">
-                                                    @GetStatusText(item.Estatus)
-                                                </MudChip> *@
-                                                <td>
-                                                    <span class="badge @(item.Generado ? "ok" : "fail")">
-                                                        @(item.Generado ? "Sí" : "No")
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge @(item.Sirviendo ? "ok" : "fail")">
-                                                        @(item.Sirviendo ? "Sí" : "No")
-                                                    </span>
-                                                </td>
-                                                <td>
-                                                    <span class="badge @(item.Despacho ? "ok" : "fail")">
-                                                        @(item.Despacho ? "Sí" : "No")
-                                                    </span>
-                                                </td>
+                                                <td>#@item.DispensaryId</td>
+                                                <td> <span class="badge" style="background-color:@status.Color; color:@StatusTextColor(status.Id); border:@StatusBorder(status.Id);"> @status.Code </span> </td>
+                                                <td><span class="badge  @BoolClass(item.Generado)"> @BoolText(item.Generado)</span></td> 
+                                                <td><span class="badge @BoolClass(item.Sirviendo)"> @BoolText(item.Sirviendo) </span></td> 
+                                                <td><span class="badge @BoolClass(item.Despacho)"> @BoolText(item.Despacho)</span> </td>
                                             </tr>
                                         }
-                                    </tbody>
-                                </table>
-                            </div>
-
+                                </tbody>
+                            </table>
                         </div>
-                    </ChildContent>
-                </MudTabPanel>
+                    </div>
+                </ChildContent>
+            </MudTabPanel>
         }
     </MudTabs>
 }
@@ -142,34 +117,46 @@ else
     }
 </style> *@
 </div>
-
 @code {
     private int selectedTabIndex = 0;
     private bool isLoadingDispensaries = false;
     private string? dispensariesError = null;
     private double touchEndX = 0;
     private double touchStartX = 0;
-    private bool expandAll = false;
+    private bool openLegend = false;
 
-    private Dictionary<string, List<DispensaryDto>> dispensariesByStation = new();
+    private static string StatusTextColor(int id) => id == 2 ? "black" : "white";
+    private static string StatusBorder(int id) => id == 2 ? "1px solid #ccc" : "none";
+    private static string BoolClass(bool v) => v ? "ok" : "fail";
+    private static string BoolText(bool v) => v ? "Sí" : "No";
 
-    protected override async Task OnInitializedAsync()
+    private Dictionary<string, List<DispensaryDto>> dispensariesByStation = new(); 
+    private List<KeyValuePair<string, List<DispensaryDto>>> dispensariesByStationOrdered = new();
+
+    protected override async Task OnInitializedAsync() => await LoadDispensariesAsync();
+
+    private void HandleTouchStart(TouchEventArgs e) => touchStartX = e.Touches[0].ClientX; 
+    private void ToggleLegend() => openLegend = !openLegend;
+
+    private void NextTab()
     {
-        await LoadDispensariesAsync();
+        if (dispensariesByStationOrdered.Count == 0)
+            return;
+
+        selectedTabIndex = (selectedTabIndex + 1) % dispensariesByStationOrdered.Count;
     }
-    private void ToggleExpandAll()
+
+    private void PrevTab()
     {
-        expandAll = !expandAll;
-    }
-    private void HandleTouchStart(TouchEventArgs e)
-    {
-        touchStartX = e.Touches[0].ClientX;
+        if (dispensariesByStationOrdered.Count == 0)
+            return;
+
+        selectedTabIndex = (selectedTabIndex - 1 + dispensariesByStationOrdered.Count) % dispensariesByStationOrdered.Count;
     }
 
     private void HandleTouchEnd(TouchEventArgs e)
     {
         touchEndX = e.ChangedTouches[0].ClientX;
-
         var diff = touchEndX - touchStartX;
 
         if (Math.Abs(diff) < 50)
@@ -180,52 +167,9 @@ else
         else
             PrevTab();
     }
+    
+    private List<ConnItem> GetVisibleStations() => ConnectionSelector.GetConnections() .Where(x => !string.IsNullOrWhiteSpace(x.name) && !x.name.Equals("Laboratorio", StringComparison.OrdinalIgnoreCase)) .ToList();
 
-    private void NextTab()
-    {
-        if (dispensariesByStation.Count == 0)
-            return;
-
-        selectedTabIndex = (selectedTabIndex + 1) % dispensariesByStation.Count;
-    }
-
-    private void PrevTab()
-    {
-        if (dispensariesByStation.Count == 0)
-            return;
-
-        selectedTabIndex = (selectedTabIndex - 1 + dispensariesByStation.Count) % dispensariesByStation.Count;
-    }
-
-    private string GetStatusText(int? status)
-    {
-        return status switch
-        {
-            0 => "No Configurado",
-            1 => "Fuera de Línea",
-            2 => "Inactivo",
-            3 => "Llamando",
-            4 => "Reservado",
-            5 => "Autorizado",
-            6 => "Sirviendo",
-            7 => "Suspendido",
-            8 => "Pagable",
-            9 => "Cobrar",
-            _ => "Desconocido"
-        };
-    }
-
-    private Color GetStatusColor(int? status)
-    {
-        return status switch
-        {
-            6 => Color.Success,
-            5 => Color.Primary,
-            3 => Color.Warning,
-            1 => Color.Error,
-            _ => Color.Default
-        };
-    }
     private async Task LoadDispensariesAsync()
     {
         isLoadingDispensaries = true;
@@ -234,9 +178,7 @@ else
         try
         {
             dispensariesByStation.Clear();
-            var stations = ConnectionSelector.GetConnections()
-                .Where(x => !x.name.Equals("Laboratorio", StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            var stations = GetVisibleStations();
 
             foreach (var station in stations)
             {
@@ -252,13 +194,14 @@ else
                         item.StationName = station.name;
                     }
 
-                    dispensariesByStation[station.name] = list.ToList();
+                    dispensariesByStation[station.name] = list.OrderBy(x => x.DispensaryId).ToList();
                 }
                 catch (Exception exConn)
                 {
                     await FileLogger.ErrorAsync($"Error en modulo Dispensarios al obtener dispensarios de {station.name}: {exConn}");
                 }
             }
+            dispensariesByStationOrdered = dispensariesByStation.OrderBy(x => x.Key).ToList(); 
         }
         catch (Exception ex)
         {
@@ -268,8 +211,7 @@ else
         }
         finally
         {
-            isLoadingDispensaries = false;
-            StateHasChanged();
+            isLoadingDispensaries = false; 
         }
     }
 }
