@@ -283,10 +283,15 @@
             padding: 16px 12px !important;
         }
 }
+
 body.modal-open {
     overflow: hidden !important;
     height: 100vh;
     overscroll-behavior: none; /* evita que “rebote” al fondo */
+}
+
+.no-transform {
+    text-transform: none !important;
 }
 .modal-backdrop-custom {
     position: fixed;
@@ -297,7 +302,15 @@ body.modal-open {
     backdrop-filter: blur(4px); /* efecto vidrio opcional */
     animation: fadeInBackdrop 0.25s ease;
 }
+.modal-blue-header {
+    padding: 8px 12px !important;
+    min-height: 45px;
+}
 
+    .modal-blue-header .modal-title {
+        font-size: 1rem;
+        margin: 0;
+    }
 @keyframes fadeInBackdrop {
     from {
         opacity: 0;
@@ -320,4 +333,97 @@ body.modal-open {
     color: #0d6efd;
     width: 100%;
 }
-  
+@keyframes bell-ring {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    10% {
+        transform: rotate(18deg);
+    }
+
+    20% {
+        transform: rotate(-14deg);
+    }
+
+    30% {
+        transform: rotate(10deg);
+    }
+
+    40% {
+        transform: rotate(-8deg);
+    }
+
+    50% {
+        transform: rotate(5deg);
+    }
+
+    60% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(0deg);
+    }
+}
+
+.bell-animate {
+    display: inline-block;
+    transform-origin: top center;
+    animation: bell-ring 0.9s ease-in-out;
+}
+.folio-input {
+    font-size: 1.4rem;
+    line-height: 1.1;
+    padding-top: 6px;
+    padding-bottom: 6px;
+}
+
+.folio-capture {
+    font-size: 1.8rem !important;
+    line-height: 1.1 !important;
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+    height: auto !important;
+}
+.sequence-box {
+    font-size: 1.1rem !important;
+    height: 36px !important;
+    padding: 2px 6px !important;
+    line-height: 1 !important;
+    border-radius: 8px !important;
+}
+
+.sequence-box-capture {
+    width: 100%;
+    min-height: 52px;
+    border: 1px solid #dee2e6;
+    border-radius: 10px;
+    background: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    font-weight: 700;
+    font-size: 1.35rem;
+    line-height: 1.05;
+    color: #212529;
+    padding: 6px 10px;
+    box-sizing: border-box;
+    overflow: hidden;
+    letter-spacing: .5px;
+}
+
+
+@media (max-width: 480px) {
+    .sequence-box-capture {
+        min-height: 46px;
+        font-size: 1.2rem;
+        padding: 5px 8px;
+    }
+
+    .sequence-box {
+        font-size: 1rem !important;
+        height: 34px !important;
+    }
+}

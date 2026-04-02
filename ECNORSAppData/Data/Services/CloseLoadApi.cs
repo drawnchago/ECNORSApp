@@ -18,7 +18,8 @@ public sealed class CloseLoadApi : ICloseLoadApi
         Task<IReadOnlyList<DispensaryDto>> GetDispensariosAsync(string station, CancellationToken ct = default);
         Task<IReadOnlyList<BinnacleDto>> GetBinnacleTopByDayAsync(string station, int dispensaryId, DateTime selectedDay, CancellationToken ct = default);
         Task<IReadOnlyList<TransactionDto>> GetTransactionsTopAsync(string station, int dispensaryId, CancellationToken ct = default);
-        Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default);
+        Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default); 
+        Task<BinnacleDto?> GetBinnacleBySequenceAsync(string station, long secuencia, CancellationToken ct = default);
         Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default);
         Task<decimal> GetNetVolAutoAsync(string station,int intDispensario,int intProducto,decimal temperatura,decimal volumenGross,CancellationToken ct = default);
         Task<TransactionResp<bool>> UpdateTransactionBySequenceAsync(TransactionUpdateDto dto,CancellationToken ct = default);
@@ -92,9 +93,7 @@ public sealed class CloseLoadApi : ICloseLoadApi
         return payload.Data;
     }
 
-    public Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default)
-        => _http.GetFromJsonAsync<TransactionDto>(
-            $"api/transaction/by-sequence/{secuencia}?station={Uri.EscapeDataString(station)}", ct);
+    public Task<TransactionDto?> GetTransactionBySequenceAsync(string station, long secuencia, CancellationToken ct = default)  => _http.GetFromJsonAsync<TransactionDto>( $"api/transaction/by-sequence/{secuencia}?station={Uri.EscapeDataString(station)}", ct);
 
     public async Task CloseManualAsync(string station,int secuenciaBuscar,decimal volumenGross,decimal volumenNetoCt,decimal temperatura,CancellationToken ct = default)
     {
@@ -112,7 +111,32 @@ public sealed class CloseLoadApi : ICloseLoadApi
         var resp = await _http.PostAsJsonAsync(url, body, ct);
         resp.EnsureSuccessStatusCode();
     }
+    public async Task<BinnacleDto?> GetBinnacleBySequenceAsync(string station, long secuencia, CancellationToken ct = default)
+    {
+        var url = $"api/Binnacle/by-sequence?station={Uri.EscapeDataString(station)}&secuencia={secuencia}";
 
+        using var resp = await _http.GetAsync(url, ct);
+
+        var raw = await resp.Content.ReadAsStringAsync(ct);
+        System.Diagnostics.Debug.WriteLine($"[GetBinnacleBySequenceAsync] URL: {url}");
+        System.Diagnostics.Debug.WriteLine($"[GetBinnacleBySequenceAsync] Status: {(int)resp.StatusCode}");
+        System.Diagnostics.Debug.WriteLine($"[GetBinnacleBySequenceAsync] Raw: {raw}");
+
+        if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
+            return null;
+
+        resp.EnsureSuccessStatusCode();
+
+        var wrapper = JsonSerializer.Deserialize<DbInfoResp<BinnacleDto>>(raw, new JsonSerializerOptions
+        {
+            PropertyNameCaseInsensitive = true
+        });
+
+        System.Diagnostics.Debug.WriteLine($"[GetBinnacleBySequenceAsync] Wrapper.Success: {wrapper?.Success}");
+        System.Diagnostics.Debug.WriteLine($"[GetBinnacleBySequenceAsync] Obs: {wrapper?.Data?.Observations}");
+
+        return wrapper?.Data;
+    }
     public async Task<decimal> GetNetVolAutoAsync(string station,int intDispensario,int intProducto,decimal temperatura,decimal volumenGross,CancellationToken ct = default)
         => (await (await _http.PostAsJsonAsync(
                 "api/binnacle/GetNetVolAuto",

@@ -140,6 +140,7 @@ namespace ECNORSAppData.Services
             return await db.tblTransacciones
                 .AsNoTracking()
                 .Where(t => t.intSecuencia == secuencia)
+                .OrderByDescending(t => t.datFechahora) // por si hubiera más de una
                 .Select(t => new TransactionDto
                 {
                     id = t.intID,                

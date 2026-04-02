@@ -8,10 +8,11 @@
 @inject SelectedConnectionState ConnState
 @inject ECNORSApp.Services.IToastService ToastService
 @inject ECNORSApp.Services.IFileLoggerService FileLogger
+@inject IJSRuntime JS
 
-@* <div class="d-flex justify-content-end">
+<div class="d-flex justify-content-end">
     <button class="btn btn-warning" @onclick="ExportLog" disabled="@isBusy">Exportar Log</button>
-</div> *@
+</div>
 
 <h4>Estación</h4>
 <div class="d-flex align-items-center gap-2 mt-2">
@@ -221,148 +222,205 @@
         <div class="modal-dialog modal-dialog-centered" @onclick:stopPropagation="true">
             <div class="modal-content modal-blue">
                 <div class="modal-header modal-blue-header">
-                    <h5 class="modal-title">Detalle (#Sec. @(selectedBinnacle?.id.ToString() ?? "-"))</h5>
-                    <button type="button" class="btn-close" @onclick="() => CloseModalAsync(true)"></button>
+                    <h5 class="modal-title">Cierre de secuencia/folio</h5> 
+                    <MudIconButton Icon="@Icons.Material.Filled.Share" Style="color: white;" OnClick="CaptureModalAsync" />
                 </div>
 
-                <div class="modal-body">
-                    <MudStack Spacing="2" Style="margin-bottom:5%;">
-                        <MudPaper Elevation="6" Class="@($"bitacora-acordeon {(_expandSequence ? "pa-4" : "pa-0")}")">
-                            <MudButton OnClick="OnExpandCollapse3Click" FullWidth="true" Class="d-flex justify-content-center align-items-center">
-                                <span class="fw-bold text-primary"># Secuencia</span>
-                            </MudButton>
-                            <MudDivider />
-                            <MudCollapse Expanded="_expandSequence">
-                                <div class="col-12 col-md-12 text-center mb-2">
-                                    <input class="form-control text-center fw-bold fs-4 input-blue-readonly"
-                                           value="@(selectedBinnacle?.id.ToString() ?? "")"
-                                           readonly />
-                                </div>
-                            </MudCollapse>
-                        </MudPaper>
-                    </MudStack>
-
-                    <MudStack Spacing="2" Style="margin-bottom:5%;">
-                        <MudPaper Elevation="6" Class="@($"bitacora-acordeon {(_expandBinnacle ? "pa-4" : "pa-0")}")">
-                            <MudButton OnClick="OnExpandCollapseClick" FullWidth="true" Class="d-flex justify-content-center align-items-center">
-                                <span class="fw-bold text-primary">Bitacora</span>
-                            </MudButton>
-                            <MudDivider />
-                            <MudCollapse Expanded="_expandBinnacle">
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label fw-bold">Dispensario</label>
-                                        <input class="form-control input-blue-readonly fw-bold" value="@selectedBinnacle?.DispensaryId" readonly disabled />
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label fw-bold">Manguera</label>
-                                        <input class="form-control input-blue-readonly" value="@selectedBinnacle?.HoseId" readonly disabled />
-                                    </div>
-                                </div>
-
-                                <div class="col-12 col-md-12 mb-3">
-                                    <label class="form-label fw-bold">Producto</label>
-                                    <input class="form-control fw-bold text-white text-center @(selectedBinnacle?.ProductId switch
-                                           {
-                                               1 => "bg-red",
-                                               2 => "bg-primary",
-                                               3 => "bg-dark",
-                                               _ => ""
-                                           })"
-                                           value="@(
-                                           selectedBinnacle?.ProductId == 1 ? "SUPREME +" :
-                                           selectedBinnacle?.ProductId == 2 ? "EXTRA" :
-                                           selectedBinnacle?.ProductId == 3 ? "DIESEL" :
-                                           selectedBinnacle?.ProductId?.ToString() ?? "")"
-                                           readonly />
-                                </div>
-
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label fw-bold">Programado</label>
-                                        <input class="form-control input-blue-readonly" value="@Format2(selectedBinnacle?.Scheduled)" readonly disabled />
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label fw-bold">Vendido</label>
-                                        <input class="form-control input-blue-readonly" value="@Format2(selectedBinnacle?.Sold)" readonly disabled />
-                                    </div>
-                                </div>
-
-                                <div class="row g-2 mb-2">
-                                    <div class="col-6">
-                                        <label class="form-label fw-bold">Volumen vendido</label>
-                                        <input class="form-control input-blue-readonly" value="@Format2(selectedBinnacle?.SoldVolume)" readonly disabled />
-                                    </div>
-                                    <div class="col-6">
-                                        <label class="form-label fw-bold">Precio unitario</label>
-                                        <input class="form-control input-blue-readonly" value="@Format2(selectedBinnacle?.UnitPrice)" readonly disabled />
-                                    </div>
-                                </div>
-                            </MudCollapse>
-                        </MudPaper>
-                    </MudStack>
-
+                <div  id="modalCapture" class="modal-body">
                     <MudStack Spacing="5">
                         <MudPaper Elevation="6" Class="@($"bitacora-acordeon {(_expandCloseLoad ? "pa-4" : "pa-0")}")">
                             <MudButton OnClick="OnExpandCollapse2Click" FullWidth="true" Class="d-flex justify-content-center align-items-center">
-                                <span class="fw-bold text-primary">Cierre Manual</span>
+                                @if (!isCaptureMode)
+                                {
+                                    <span class="fw-bold text-primary text-center d-block no-transform">
+                                        #Secuencia/Folio
+                                    </span>
+                                } 
                             </MudButton>
-
-                            <MudCollapse Expanded="_expandCloseLoad">
-                                <div class="d-flex justify-content-center mt-2">
-                                    <MudRadioGroup @bind-Value="isCloseMode">
-                                        <MudRadio Value="false" Color="Color.Secondary" Dense="false">Normal</MudRadio>
-                                        <MudRadio Value="true" Color="Color.Primary" Dense="true">Forzado</MudRadio>
-                                    </MudRadioGroup>
+                            <div class="col-12 col-md-12 text-center mb-3">
+                                @if (!isCaptureMode)
+                                {
+                                    <input class="form-control text-center fw-bold fs-2 input-blue-readonly sequence-box "
+                                           value="@(selectedBinnacle?.id.ToString() ?? "")"
+                                           readonly />
+                                } 
+                            </div>
+                            @if (selectedTransaction != null && selectedTransaction.id > 0)
+                            {
+                                <span class="fw-bold text-primary text-center d-block">#Transacción</span>
+                                <div class="col-12 col-md-12 text-center mb-3">
+                                    @if (!isCaptureMode)
+                                    {
+                                        <input class="form-control text-center fw-bold fs-2 input-blue-readonly sequence-box"
+                                               value="@selectedTransaction.id"
+                                               readonly />
+                                    }
+                                    else
+                                    {
+                                        <div class="sequence-box-capture">
+                                            @selectedTransaction.id
+                                        </div>
+                                    }
                                 </div>
+                            }
+                            <MudCollapse Expanded="_expandCloseLoad">
+                                <div class="row g-2 mb-2">
+                                    <div class="col-6">
+                                        <label class="form-label fw-bold text-center d-block">Dispensario</label>
+                                        <input class="form-control  fw-bold input-blue-readonly fw-bold text-center d-block" value="@selectedBinnacle?.DispensaryId" readonly disabled />
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label fw-bold text-center d-block">Manguera</label>
+                                        <input class="form-control  fw-bold input-blue-readonly text-center d-block" value="@selectedBinnacle?.HoseId" readonly disabled />
+                                    </div>
+                                </div>
+                                <div  class="row">
+                                    <div class="col-6 col-md-6 mb-3">
+                                        <label class="form-label fw-bold text-center d-block">Producto</label> 
+                                        <div class="input-group">  
+                                            <input class="form-control fw-bold text-white text-center @(selectedBinnacle?.ProductId switch
+                                                               {
+                                                                   1 => "bg-primary",  // SUPREME → azul
+                                                                   2 => "bg-success",  // EXTRA → verde
+                                                                   3 => "bg-dark",     // DIESEL → negro
+                                                                   _ => ""
+                                                               })"
+                                                   value="@(
+                                                        selectedBinnacle?.ProductId == 1 ? "SUPREME +" :
+                                                        selectedBinnacle?.ProductId == 2 ? "EXTRA " :
+                                                        selectedBinnacle?.ProductId == 3 ? "DIESEL" :
+                                                        selectedBinnacle?.ProductId?.ToString() ?? ""
+                                                                )"
+                                                   readonly />
+                                            <span class="input-group-text d-flex align-items-center justify-content-center gap-1 fw-bold"
+                                                  style="min-width:55px; padding:4px 6px;">
+
+                                                <MudIcon Icon="@Icons.Material.Filled.Bolt" Size="Size.Small" />
+
+                                                @(
+                                                    selectedBinnacle?.ProductId == 1 ? "91+" :
+                                                    selectedBinnacle?.ProductId == 2 ? "87" :
+                                                    selectedBinnacle?.ProductId == 3 ? "D" :
+                                                    "?"
+                                                )
+
+                                            </span>
+                                        </div> 
+                                    </div>
+
+                                    <div class="col-6 col-md-6 mb-3">
+                                        <label class="form-label fw-bold text-center d-block">Cerrada</label>
+
+                                        <div class="input-group">
+
+                                            <!-- INPUT -->
+                                            <input class="form-control fw-bold text-white text-center @(selectedBinnacle?.Closed switch
+                                                           {
+                                                               false => "bg-red",
+                                                               true => "bg-success"
+                                                           })"
+                                                   value="@(selectedBinnacle?.Closed == true ? "Sí" : "No")"
+                                                   readonly />
+
+                                            <span class="input-group-text">
+                                                <span class="@(animateBell && selectedBinnacle?.Closed == false ? "bell-animate d-inline-block" : "d-inline-block")">
+                                                    <MudIcon Icon="@(selectedBinnacle?.Closed == true
+                                                                                              ? Icons.Material.Filled.CheckCircle
+                                                                                              : Icons.Material.Filled.NotificationsActive)"
+                                                             Color="@(selectedBinnacle?.Closed == true
+                                                                                              ? Color.Success
+                                                                                              : Color.Error)" />
+                                                </span>
+                                            </span>
+
+                                        </div>
+                                    </div>
+                                </div>
+                                @if (selectedTransaction != null && selectedTransaction.id > 0 && selectedBinnacle is not null)
+                                {
+                                    <div class="col-12 mb-3">
+                                        <label class="form-label fw-bold text-center d-block">Observaciones</label>
+                                        <input class="form-control fw-bold text-danger text-center obs-small"
+                                               style="background-color:#f8d7da; border:1px solid #f5c2c7;"
+                                               value="@(selectedBinnacle?.Observations ?? "N/A")"
+                                               readonly /> 
+                                    </div>
+                                }
+                                @if (!isCaptureMode)
+                                {
+                                    <div class="modal-footer d-flex justify-content-center mt-2">
+                                        <MudRadioGroup @bind-Value="isCloseMode">
+                                            <MudRadio Value="false" Color="Color.Secondary" Dense="false">Normal</MudRadio>
+                                            <MudRadio Value="true" Color="Color.Primary" Dense="true">Forzado</MudRadio>
+                                        </MudRadioGroup>
+                                    </div>
+                                }
 
                                 @if (!isCloseMode)
                                 {
-                                    <div class="modal-footer modal-blue-footer d-flex justify-content-end mt-2">
-                                        <button class="btn btn-outline-primary btn-sm"
-                                                @onclick="GetNetVolAutoAsync"
-                                                disabled="@isCalculatingNet">
-                                            @if (isCalculatingNet)
-                                            {
-                                                <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                                                <span>Calculando...</span>
-                                            }
-                                            else
-                                            {
-                                                <span>Calcular Volumen</span>
-                                            }
-                                        </button>
-                                    </div>
+                                    @if (!isCaptureMode)
+                                    {
+                                        <div class="modal-blue-footer d-flex justify-content-end mt-2 mb-2">
+                                            <button class="btn btn-outline-primary btn-sm" @onclick="GetNetVolAutoAsync" disabled="@isCalculatingNet">
+                                                @if (isCalculatingNet)
+                                                {
+                                                    <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                                    <span>Calculando...</span>
+                                                }
+                                                else
+                                                {
+                                                    <span>Calcular Volumen</span>
+                                                }
+                                            </button>
+                                        </div>
+                                    }
 
                                     <div class="row g-2 mb-2">
                                         <div class="col-6">
                                             <label class="form-label fw-bold">V.Bruto(GROSS)</label>
-                                            <input class="form-control input-blue" type="number" @bind="inputGross" />
+                                            <input class="form-control input-blue @(isCaptureMode ? "input-readonly text-center d-block " : "")"
+                                                   type="number"
+                                                   @bind="inputGross"
+                                                   readonly="@isCaptureMode" />
                                         </div>
+
                                         <div class="col-6">
                                             <label class="form-label fw-bold">Precio(Temperatura)</label>
-                                            <input class="form-control input-blue" type="number" @bind="inputTemperature" />
+                                            <input class="form-control input-blue @(isCaptureMode ? "input-readonly text-center d-block" : "")"
+                                                   type="number"
+                                                   @bind="inputTemperature"
+                                                   readonly="@isCaptureMode" />
                                         </div>
+
                                         <div class="col-12 mb-2">
                                             <label class="form-label fw-bold">Monto(V.Neto)</label>
-                                            <input class="form-control input-blue" type="number" @bind="inputNet" />
+                                            <input class="form-control input-blue @(isCaptureMode ? "input-readonly text-center d-block" : "")"
+                                                   type="number"
+                                                   @bind="inputNet"
+                                                   readonly="@isCaptureMode" />
                                         </div>
                                     </div>
 
-                                    <div class="modal-footer modal-blue-footer d-flex justify-content-between">
-                                        <button class="btn btn-outline-info" @onclick="() => CloseModalAsync(true)">Cerrar</button>
-                                        <button class="btn btn-success" @onclick="SaveModalAsync" disabled="@isSavingModal">
-                                            @(isSavingModal ? "Guardando..." : "Guardar")
-                                        </button>
-                                    </div>
+                                    @if (!isCaptureMode)
+                                    {
+                                        <div class="modal-footer modal-blue-footer d-flex justify-content-between">
+                                            <button class="btn btn-outline-info" @onclick="() => CloseModalAsync(true)">Cerrar</button>
+                                            <button class="btn btn-primary" @onclick="SaveModalAsync" disabled="@isSavingModal">
+                                                @(isSavingModal ? "Guardando..." : "Guardar")
+                                            </button>
+                                        </div>
+                                    }
                                 }
                                 else
                                 {
-                                    <div class="modal-footer modal-blue-footer d-flex justify-content-between">
-                                        <button class="btn btn-danger col-12 col-md-12 mb-3" @onclick="SaveModalAsync" disabled="@isSavingModal">
-                                            @(isSavingModal ? "Forzando cierre..." : "Forzar")
-                                        </button>
-                                    </div>
+                                    @if (!isCaptureMode)
+                                    {
+                                        <div class="modal-footer modal-blue-footer d-flex justify-content-between">
+                                            <button class="btn btn-danger col-12 col-md-12 mb-3" @onclick="SaveModalAsync" disabled="@isSavingModal">
+                                                @(isSavingModal ? "Forzando cierre..." : "Forzar")
+                                            </button>
+                                        </div>
+                                    }
                                 }
                             </MudCollapse>
                         </MudPaper>
@@ -389,14 +447,14 @@
                     <div class="col-12 col-md-12 text-center mb-2">
                         <label class="form-label fw-bold text-primary"># Transacción</label>
                         <input class="form-control text-center fw-bold fs-4 input-blue-readonly"
-                               value="@(Transaction?.TransactionId.ToString() ?? "")"
+                               value="@(selectedTransaction?.TransactionId.ToString() ?? "")"
                                readonly />
                     </div>
 
                     <div class="col-12 col-md-12 text-center mb-2">
                         <label class="form-label fw-bold text-primary"># Secuencia</label>
                         <input class="form-control text-center fw-bold fs-4 input-blue-readonly"
-                               value="@(Transaction?.id.ToString() ?? "")"
+                               value="@(selectedTransaction?.id.ToString() ?? "")"
                                readonly />
                     </div>
 
@@ -473,7 +531,7 @@
     private BinnacleDto? selectedBinnacle;
 
     private bool showTransactionModal;
-    private TransactionDto? Transaction;
+    private TransactionDto? selectedTransaction;
 
     private bool CanConnect => !string.IsNullOrWhiteSpace(selectedName);
 
@@ -483,12 +541,17 @@
     private bool _expandSequence = false;
     private DateTime selectedDay = DateTime.Today;
 
+    private bool isCaptureMode = false;
+    private bool animateBell = false;
+    private Timer? bellTimer;
+
     // ===== NUEVO: selector de día =====
     private string selectedDayText = DateTime.Today.ToString("yyyy-MM-dd");
     private DateTime SelectedDay => DateTime.ParseExact(selectedDayText, "yyyy-MM-dd", CultureInfo.InvariantCulture);
 
     protected override Task OnInitializedAsync()
     {
+        BellRing();
         connections = ConnectionSelector.GetConnections().ToList();
         selectedName = ConnState.GetSelectedName() ?? "";
         isConnected = false;
@@ -502,6 +565,14 @@
     private async Task ReloadByDayAsync()
     {
         await LoadAsync();
+    }
+
+    private void ClearInputs()
+    {
+        inputGross = null;
+        inputNet = null;
+        inputTemperature = null;
+        inputTotalizadorFinal = null;
     }
 
     private async Task ConnectAsync()
@@ -615,7 +686,7 @@
 
     private async Task OnDispensaryChangedAsync(ChangeEventArgs e)
     {
-        if (e?.Value is null || string.IsNullOrWhiteSpace(e.Value.ToString()))
+        if (!int.TryParse(e?.Value?.ToString(), out var id))
         {
             selectedDispensaryId = null;
             transactions.Clear();
@@ -623,7 +694,7 @@
             return;
         }
 
-        selectedDispensaryId = int.Parse(e.Value.ToString()!);
+        selectedDispensaryId = id;
         await LoadAsync();
     }
 
@@ -632,12 +703,12 @@
         isCloseManual = false;
         isUpdateTrans = true;
         showTransactionModal = true;
-        Transaction = row;
+        selectedTransaction = row;
 
-        inputGross = (decimal)(Transaction.Volume ?? 0d);
-        inputNet = (decimal)(Transaction.Amount ?? 0d);
-        inputTemperature = (decimal)(Transaction.UnitPrice ?? 0d);
-        inputTotalizadorFinal = ParseDecimalOrZero(Transaction.strTotalizadorFinal);
+        inputGross = (decimal)(selectedTransaction.Volume ?? 0d);
+        inputNet = (decimal)(selectedTransaction.Amount ?? 0d);
+        inputTemperature = (decimal)(selectedTransaction.UnitPrice ?? 0d);
+        inputTotalizadorFinal = ParseDecimalOrZero(selectedTransaction.strTotalizadorFinal);
 
         StateHasChanged();
         await Task.CompletedTask;
@@ -668,7 +739,7 @@
         await Task.CompletedTask;
     }
 
-    private async Task CloseModalAsync(bool isBinnacle)
+    private async Task CloseModalAsync(bool isBinnacle, bool reload = true)
     {
         if (isBinnacle)
         {
@@ -678,80 +749,64 @@
         else
         {
             showTransactionModal = false;
-            Transaction = null;
+            selectedTransaction = null;
         }
 
-        await LoadAsync();
+        if (reload)
+            await LoadAsync();
     }
 
     private async Task SaveModalAsync()
     {
         isSavingModal = true;
 
-        await FileLogger.InfoAsync("SaveModalAsync | Start | " + $"inputGross={inputGross} inputNet={inputNet} inputTemperature={inputTemperature}");
-
         try
         {
-            if (!isCloseMode) // Normal
+            bool ok = false;
+            var previousObservation = selectedBinnacle?.Observations;
+
+            if (isCloseMode)
+                ok = await SaveForcedCloseAsync();
+            else if (isUpdateTrans)
+                ok = await SaveTransactionUpdateAsync();
+            else if (isCloseManual)
+                ok = await SaveManualCloseAsync();
+
+            if (!ok)
+                return;
+
+            if (selectedBinnacle is not null)
             {
-                if (inputGross <= 0 || inputNet <= 0 || inputTemperature == 0)
+                var trx = await CloseLoadApi.GetTransactionBySequenceAsync(selectedName, selectedBinnacle.id);
+
+                if (trx is not null)
+                    selectedTransaction = trx;
+
+                Console.WriteLine("selectedBinnacle.id =>" + selectedBinnacle.id);
+                var bin = await WaitBinnacleBySequenceAsync(
+                    selectedName,
+                    selectedBinnacle.id);
+
+                if (bin is not null)
                 {
-                    ToastService.ShowError("Debe capturar Bruto, Neto y Temperatura.");
-                    return;
+                    selectedBinnacle = bin;
+
+                    await FileLogger.InfoAsync(
+                        $"FINAL OBS => '{selectedBinnacle?.Observations}'");
+
+                    await InvokeAsync(StateHasChanged);
                 }
-
-                if (isUpdateTrans)
+                else
                 {
-                    var dto = new TransactionUpdateDto
-                    {
-                        Station = selectedName,
-                        TransactionId = Transaction!.TransactionId,
-                        UnitPrice = (double)inputTemperature!,
-                        Volume = (double)inputGross!,
-                        Amount = (double)inputNet!,
-                        strTotalizadorFinal = inputTotalizadorFinal?.ToString(CultureInfo.InvariantCulture)
-                    };
-
-                    var resp = await CloseLoadApi.UpdateTransactionBySequenceAsync(dto);
-
-                    if (!resp.Success)
-                    {
-                        ToastService.ShowError(resp.Message ?? "No se pudo actualizar la transacción.");
-                        return;
-                    }
-
-                    ToastService.ShowSuccess(resp.Message ?? "Transacción actualizada.");
-                    return;
-                }
-
-                if (isCloseManual)
-                {
-                    await CloseLoadApi.CloseManualAsync(
-                        station: selectedName,
-                        secuenciaBuscar: selectedBinnacle!.id,
-                        volumenGross: inputGross ?? 0m,
-                        volumenNetoCt: inputNet ?? 0m,
-                        temperatura: inputTemperature ?? 0m);
-
-                    ToastService.ShowSuccess("La carga fue cerrada correctamente.");
+                    await FileLogger.InfoAsync("SaveModalAsync | No se obtuvo bitácora actualizada.");
                 }
             }
-            else
-            {
-                var resp = await CloseLoadApi.CloseForcedAsync(station: selectedName, idSec: selectedBinnacle!.id);
 
-                if (!resp.Success)
-                {
-                    ToastService.ShowError(resp.Message ?? "No se pudo forzar el cierre.");
-                    return;
-                }
-
-                ToastService.ShowSuccess(resp.Message ?? "Cierre forzado ejecutado correctamente.");
-            }
+            StateHasChanged();
         }
         catch (Exception ex)
         {
-            await FileLogger.ErrorAsync("SaveModalAsync | End(Err) " + ex);
+            await FileLogger.ErrorAsync("SaveModalAsync => " + ex);
             ToastService.ShowError(ex.Message, "Error");
         }
         finally
@@ -759,6 +814,157 @@
             isSavingModal = false;
             StateHasChanged();
         }
+    }
+    private async Task<BinnacleDto?> WaitBinnacleBySequenceAsync(string station,long secuencia,CancellationToken ct = default)
+    {
+        BinnacleDto? last = null;
+
+        for (int i = 0; i < 2; i++)
+        {
+            var bin = await CloseLoadApi.GetBinnacleBySequenceAsync(station, secuencia, ct);
+
+            await FileLogger.InfoAsync($"Intento {i + 1} => Obs: '{bin?.Observations}'");
+
+            if (bin is not null)
+            {
+                last = bin;
+                 
+                if (!string.IsNullOrWhiteSpace(bin.Observations))
+                    return bin;
+            }
+             
+        }
+
+        return last;
+    }
+    private async Task<bool> SaveTransactionUpdateAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedName))
+        {
+            ToastService.ShowError("No hay estación seleccionada.");
+            return false;
+        }
+
+        if (selectedTransaction is null)
+        {
+            ToastService.ShowError("No hay transacción seleccionada.");
+            return false;
+        }
+
+        if (!ValidateManualInputs())
+            return false;
+            
+        var dto = new TransactionUpdateDto
+        {
+            Station = selectedName,
+            TransactionId = selectedTransaction.TransactionId,
+            UnitPrice = (double)inputTemperature!.Value,
+            Volume = (double)inputGross!.Value,
+            Amount = (double)inputNet!.Value,
+            strTotalizadorFinal = inputTotalizadorFinal?.ToString(CultureInfo.InvariantCulture)
+        };
+
+        var resp = await CloseLoadApi.UpdateTransactionBySequenceAsync(dto);
+
+        if (!resp.Success)
+        {
+            await FileLogger.ErrorAsync($"SaveTransactionUpdateAsync | Negocio | Station={selectedName} TransactionId={selectedTransaction.TransactionId} Msg={resp.Message}");
+            ToastService.ShowError(resp.Message ?? "No se pudo actualizar la transacción.");
+            return false;
+        }
+
+        await FileLogger.InfoAsync($"SaveTransactionUpdateAsync | OK | Station={selectedName} TransactionId={selectedTransaction.TransactionId}");
+        ToastService.ShowSuccess(resp.Message ?? "Transacción actualizada.");
+        return true;
+    }
+
+    private async Task<bool> SaveManualCloseAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedName))
+        {
+            ToastService.ShowError("No hay estación seleccionada.");
+            return false;
+        }
+
+        if (selectedBinnacle is null)
+        {
+            ToastService.ShowError("No hay secuencia seleccionada.");
+            return false;
+        }
+
+        if (!ValidateManualInputs())
+            return false;
+            
+        Console.WriteLine($"ValidateManualInputs");
+        Console.WriteLine($"Station: {selectedName}");
+        Console.WriteLine($"secuenciaBuscar: selectedBinnacle.id: {selectedBinnacle.id}");
+        Console.WriteLine($"inputGross!.Value: {inputGross!.Value}");
+        Console.WriteLine($"inputNet!.Value: {inputNet!.Value}");
+        Console.WriteLine($"iinputTemperature!.Value: {inputTemperature!.Value}");
+        await CloseLoadApi.CloseManualAsync(
+            station: selectedName,
+            secuenciaBuscar: selectedBinnacle.id,
+            volumenGross: inputGross!.Value,
+            volumenNetoCt: inputNet!.Value,
+            temperatura: inputTemperature!.Value
+        );
+        
+        Console.WriteLine($"CloseManualAsync");
+        await FileLogger.InfoAsync($"SaveManualCloseAsync | OK | Station={selectedName} Secuencia={selectedBinnacle.id}");
+        ToastService.ShowSuccess("La carga fue cerrada correctamente.");
+        return true;
+    }
+
+    private bool ValidateManualInputs()
+    {
+        if (!inputGross.HasValue || inputGross.Value <= 0)
+        {
+            ToastService.ShowError("Debe capturar un volumen bruto válido.");
+            return false;
+        }
+
+        if (!inputNet.HasValue || inputNet.Value <= 0)
+        {
+            ToastService.ShowError("Debe capturar un monto neto válido.");
+            return false;
+        }
+
+        if (!inputTemperature.HasValue || inputTemperature.Value == 0)
+        {
+            ToastService.ShowError("Debe capturar una temperatura válida.");
+            return false;
+        }
+
+        return true;
+    }
+
+    private async Task<bool> SaveForcedCloseAsync()
+    {
+        if (string.IsNullOrWhiteSpace(selectedName))
+        {
+            ToastService.ShowError("No hay estación seleccionada.");
+            return false;
+        }
+
+        if (selectedBinnacle is null)
+        {
+            ToastService.ShowError("No hay secuencia seleccionada.");
+            return false;
+        }
+
+        var resp = await CloseLoadApi.CloseForcedAsync(
+            station: selectedName,
+            idSec: selectedBinnacle.id
+        );
+
+        if (!resp.Success)
+        {
+            ToastService.ShowError(resp.Message ?? "No se pudo forzar el cierre.");
+            return false;
+        }
+
+        ToastService.ShowSuccess(resp.Message ?? "Cierre forzado ejecutado correctamente.");
+        return true;
     }
 
     private async Task GetNetVolAutoAsync()
@@ -814,9 +1020,93 @@
         ToastService.ShowSuccess("Log copiado a Descargas");
     }
 
+    private async Task ShareScreenAsync()
+    {
+        try
+        {
+            var isCaptureSupported = Screenshot.Default.IsCaptureSupported;
+
+            if (!isCaptureSupported)
+            {
+                ToastService.ShowError("Tu dispositivo no soporta captura de pantalla.");
+                return;
+            }
+
+            var screenshot = await Screenshot.Default.CaptureAsync();
+
+            if (screenshot is null)
+            {
+                ToastService.ShowError("No se pudo tomar la captura.");
+                return;
+            }
+
+            var fileName = $"cierre_secuencia_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+            var filePath = Path.Combine(FileSystem.CacheDirectory, fileName);
+
+            await using (var stream = await screenshot.OpenReadAsync())
+            await using (var fileStream = File.OpenWrite(filePath))
+            {
+                await stream.CopyToAsync(fileStream);
+            }
+
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "Compartir captura",
+                File = new ShareFile(filePath)
+            });
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync("ShareScreenAsync => " + ex);
+            ToastService.ShowError("No se pudo compartir la captura.");
+        }
+    } 
+    private async Task CaptureModalAsync()
+    {
+        try
+        {
+            isCaptureMode = true;
+            await InvokeAsync(StateHasChanged);
+
+            await Task.Delay(200);
+
+            var dataUrl = await JS.InvokeAsync<string>("captureElement", "modalCapture");
+
+            if (string.IsNullOrWhiteSpace(dataUrl))
+            {
+                ToastService.ShowError("No se pudo capturar el modal.");
+                return;
+            }
+
+            var base64Data = dataUrl.Split(',')[1];
+            var bytes = Convert.FromBase64String(base64Data);
+
+            var fileName = $"cierre_secuencia_{DateTime.Now:yyyyMMdd_HHmmss}.png";
+            var filePath = Path.Combine(FileSystem.CacheDirectory, fileName);
+
+            await File.WriteAllBytesAsync(filePath, bytes);
+
+            await Share.Default.RequestAsync(new ShareFileRequest
+            {
+                Title = "Compartir captura",
+                File = new ShareFile(filePath)
+            });
+        }
+        catch (Exception ex)
+        {
+            await FileLogger.ErrorAsync("CaptureModalAsync => " + ex);
+            ToastService.ShowError("No se pudo compartir la captura.");
+        }
+        finally
+        {
+            isCaptureMode = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    } 
     private async Task LoadAsync()
     {
-        if (!selectedDispensaryId.HasValue) return;
+        if (!isConnected || string.IsNullOrWhiteSpace(selectedName) || !selectedDispensaryId.HasValue)
+            return;
 
         isLoadingTables = true;
         tablesError = null;
@@ -827,11 +1117,7 @@
         try
         {
             var dispId = selectedDispensaryId.Value;
-
-            // BITÁCORA por DÍA (Top 20)
             var bTask = CloseLoadApi.GetBinnacleTopByDayAsync(selectedName, dispId, selectedDay);
-
-            // Transacciones como ya lo tenías
             var tTask = CloseLoadApi.GetTransactionsTopAsync(selectedName, dispId);
 
             await Task.WhenAll(bTask, tTask);
@@ -852,5 +1138,24 @@
             isLoadingTables = false;
             StateHasChanged();
         }
+    }
+    private void BellRing()
+    {
+        bellTimer = new Timer(async _ =>
+        {
+            if (showBinnacleModal && selectedBinnacle?.Closed == false)
+            {
+                animateBell = true;
+                await InvokeAsync(StateHasChanged);
+
+                await Task.Delay(900);
+
+                animateBell = false;
+                await InvokeAsync(StateHasChanged);
+            }
+        },
+        null,
+        TimeSpan.Zero, // 🔥 inmediato
+        TimeSpan.FromSeconds(10));
     }
 }
