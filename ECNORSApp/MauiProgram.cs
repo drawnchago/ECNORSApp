@@ -22,7 +22,7 @@ namespace ECNORSApp
                 });
 
             builder.Services.AddMauiBlazorWebView();
-
+            //builder.UseMauiApp<App>().UseBarcodeReader();
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
             builder.Logging.AddDebug();

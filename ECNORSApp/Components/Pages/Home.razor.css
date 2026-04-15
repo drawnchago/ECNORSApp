@@ -427,3 +427,99 @@ body.modal-open {
         height: 34px !important;
     }
 }
+/* ===== BITÁCORA RESPONSIVE REAL ===== */
+.bitacora-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+    .bitacora-table th,
+    .bitacora-table td {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+/* escritorio normal */
+@media (min-width: 768px) {
+    .bitacora-table {
+        min-width: 980px;
+    }
+}
+
+/* celular */
+@media (max-width: 767.98px) {
+    .bitacora-shell {
+        overflow-x: hidden;
+        max-height: 360px;
+    }
+
+    .bitacora-table {
+        min-width: 100% !important;
+        font-size: 8px !important;
+        table-layout: fixed;
+    }
+
+        .bitacora-table thead th {
+            font-size: 8px !important;
+            padding: 4px 3px !important;
+            letter-spacing: 0 !important;
+            text-transform: none !important;
+        }
+
+        .bitacora-table tbody td {
+            padding: 4px 3px !important;
+            font-size: 8px !important;
+            line-height: 1.05 !important;
+        }
+
+        .bitacora-table .pill {
+            font-size: 7px !important;
+            padding: 2px 4px !important;
+            gap: 3px !important;
+        }
+
+            .bitacora-table .pill::before {
+                width: 5px;
+                height: 5px;
+            }
+
+        /* ocultar columnas pesadas en móvil */
+        .bitacora-table .hide-mobile {
+            display: none;
+        }
+
+        /* anchos compactos */
+        .bitacora-table .col-sec {
+            width: 10%;
+        }
+
+        .bitacora-table .col-tot {
+            width: 16%;
+        }
+
+        .bitacora-table .col-prog {
+            width: 10%;
+        }
+
+        .bitacora-table .col-vend {
+            width: 10%;
+        }
+
+        .bitacora-table .col-vol {
+            width: 12%;
+        }
+
+        .bitacora-table .col-cerr {
+            width: 12%;
+        }
+
+        .bitacora-table .col-obs {
+            width: 14%;
+        }
+
+        .bitacora-table .col-fecha {
+            width: 16%;
+        }
+
+}
